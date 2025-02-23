@@ -6,7 +6,9 @@ from dxf_utils import get_entity_primitives
 from groupy import group_dxf_entities_into_polygons, DXFPolygonGroup
 from dxf_utils import DXFEntityPrimitives
 
+import io
 import ezdxf
+
 
 def main():
     if len(sys.argv) < 2:
@@ -17,8 +19,9 @@ def main():
     with open(filename, 'r') as f:
         fileStrContent = f.read()
 
-    dxf_entities: list[DXFEntityPrimitives] = get_entity_primitives(
-        fileStrContent)
+    stream = io.StringIO(fileStrContent)
+
+    dxf_entities: list[DXFEntityPrimitives] = get_entity_primitives(stream)
 
     paths = []
     for entity in dxf_entities:

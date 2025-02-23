@@ -68,18 +68,17 @@ def extract_entity_primitives(msp, max_flattening_distance=0.01) -> list[DXFEnti
     return list(entity_dict.values())
 
 
-def get_entity_primitives(dxf_str, max_flattening_distance=0.01) -> list[DXFEntityPrimitives]:
+def get_entity_primitives(dxf_stream, max_flattening_distance=0.01) -> list[DXFEntityPrimitives]:
     """
     Reads a DXF string and extracts DXF entity primitives.
 
     Parameters:
-        dxf_str: A string containing the DXF content.
+        dxf_stream: The DXF string to process.
         max_flattening_distance: Maximum flattening distance for curve approximation.
 
     Returns:
         List[DXFEntityPrimitives]: A list of DXFEntityPrimitives objects extracted from the DXF.
     """
-    stream = io.StringIO(dxf_str)
-    doc = ezdxf.read(stream)
+    doc = ezdxf.read(dxf_stream)
     msp = doc.modelspace()
     return extract_entity_primitives(msp, max_flattening_distance=max_flattening_distance)
