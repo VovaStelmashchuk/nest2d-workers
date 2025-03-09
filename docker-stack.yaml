@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  nest2d-worker-dev:
+    image: ghcr.io/vovastelmashchuk/dxf-nesting-processor:${GIT_COMMIT_SHA:-latest}
+    network_mode: "host"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    ports:
+      - "10001:3000"
+    environment:
+      - SECRET_FILE=/run/secrets/nest2d-secret-dev
+    secrets:
+      - nest2d-secret-dev
+    deploy:
+      update_config:
+        order: start-first
+
+secrets:
+  nest2d-secret-dev:
+    external: true
