@@ -7,8 +7,6 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
-    ports:
-      - "10001:3000"
     environment:
       - SECRET_FILE=/run/secrets/nest2d-secret-dev
     secrets:
