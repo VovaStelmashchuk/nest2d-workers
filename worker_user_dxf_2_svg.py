@@ -13,7 +13,7 @@ while True:
     print("Worker dxf to svg is waiting for a task")
 
     doc = collection.find_one_and_update(
-        {"svgGeneratorStatus": "local-pending"},
+        {"svgGeneratorStatus": "pending"},
         {"$set": {"svgGeneratorStatus": "processing"}},
         return_document=ReturnDocument.AFTER
     )
