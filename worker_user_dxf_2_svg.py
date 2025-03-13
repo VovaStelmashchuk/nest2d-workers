@@ -27,21 +27,39 @@ while True:
 
         for dxf in dxfArray:
             fileSlug = dxf["slug"]
-            binary_stream = userDxfBucket.open_download_stream_by_name(
-                fileSlug)
+            processingStatus = dxf.get("processingStatus", "default")
 
-            text_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
+            print("Processing dxf to svg for file: ", fileSlug, dxf)
 
-            svg_content = create_svg(text_stream)
+            if processingStatus == "done":
+                continue
 
-            userSvgBucket.upload_from_stream(
-                fileSlug, io.BytesIO(svg_content.encode("utf-8"))
-            )
             collection.update_one(
                 {"_id": doc["_id"], "dxf.slug": fileSlug},
-                {"$set": {"dxf.$.svgExists": True}}
+                {"$set": {"dxf.$.processingStatus": "in-progress"}}
             )
-            print("Done")
+            try:
+                binary_stream = userDxfBucket.open_download_stream_by_name(
+                    fileSlug)
+
+                text_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
+
+                svg_content = create_svg(text_stream)
+
+                userSvgBucket.upload_from_stream(
+                    fileSlug, io.BytesIO(svg_content.encode("utf-8"))
+                )
+                collection.update_one(
+                    {"_id": doc["_id"], "dxf.slug": fileSlug},
+                    {"$set": {"dxf.$.svgExists": True, "dxf.$.processingStatus": "done"}}
+                )
+            except Exception as e:
+                print("Error: ", e)
+                collection.update_one(
+                    {"_id": doc["_id"], "dxf.slug": fileSlug},
+                    {"$set": {"dxf.$.processingStatus": "error",
+                              "dxf.$.processingError": str(e)}}
+                )
 
         collection.update_one(
             {"_id": doc["_id"]},
