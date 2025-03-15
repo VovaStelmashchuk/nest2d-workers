@@ -7,12 +7,6 @@ def create_svg(dxf_stream):
 
     dxf_entities: list[DXFEntityPrimitives] = get_entity_primitives(dxf_stream)
 
-    paths = []
-    for entity in dxf_entities:
-        paths.extend(entity.get_paths())
-
-    print(f"Extracted {len(paths)} path objects.")
-
     polygon_groups: list[DXFPolygonGroup] = group_dxf_entities_into_polygons(
         dxf_entities
     )
@@ -51,9 +45,22 @@ def create_svg(dxf_stream):
         svg_parts.append(
             f'<polygon points="{points}" fill="none" stroke="black" stroke-width="0.5" />')
 
+    # inner stuff
+    for group in polygon_groups:
+        innerEntities = group.dxf_entities
+        for entity in innerEntities:
+            for primitive in entity.primitives:
+                verts = list(primitive.vertices())
+                if len(verts) < 2:
+                    continue
+                for i in range(len(verts) - 1):
+                    pt1 = (verts[i][0], verts[i][1])
+                    pt2 = (verts[i+1][0], verts[i+1][1])
+                    svg_parts.append(
+                        f'<line x1="{pt1[0]}" y1="{pt1[1]}" x2="{pt2[0]}" y2="{pt2[1]}" stroke="black" stroke-width="0.5" />')
+
     svg_parts.append("</svg>")
 
     svg_content = "\n".join(svg_parts)
 
     return svg_content
-
