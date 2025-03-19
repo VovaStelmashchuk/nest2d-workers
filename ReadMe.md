@@ -1,4 +1,4 @@
-The project process the dxf files. Create for service [Nest2d](https://nest2d.stelamashchuk.dev)
+The project process the dxf files. Create for service [Nest2d](https://nest2d.stelmashchuk.dev/)
 
 The project is under development. The project does not have a goal to be universal dxf parser or etc. The project is created for a specific task.
 
