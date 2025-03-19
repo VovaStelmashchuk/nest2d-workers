@@ -1,7 +1,10 @@
 from groupy import DXFPolygonGroup
-import requests
 from ezdxf import transform
 from ezdxf.entities import DXFGraphic
+import json
+import nest_rust
+
+
 class NestPolygone:
     def __init__(self, polygone_group, count):
         self.polygone_group: DXFPolygonGroup = polygone_group
@@ -41,17 +44,28 @@ class Transform:
         return f"Transform -> FileIndex: {self.fileIndex}, X: {self.x}, Y: {self.y}, Angle: {self.angle}"
 
 
-def nest(nestRequest: NestRequest) -> NestResult:
-    nestRequestObject = buildNestRequestObject(nestRequest)
-    response = requests.post(
-        "https://jaguar.stelmashchuk.dev/nest", json=nestRequestObject)
-    body = response.json()
-    items = body.get("Items")
+def nest(nest_request: NestRequest) -> NestResult:
+    items: list = nest_request.items
     totalRequest = 0
     for i in range(len(items)):
-        totalRequest += items[i].get("Demand")
+        totalRequest += items[i].count
 
-    solution = body.get("Solution")
+    nest_request_object = buildNestRequestObject(nest_request)
+    nest_request_json = json.dumps(nest_request_object)
+
+    try:
+        result_json = nest_rust.run_nest(nest_request_json)
+    except Exception as e:
+        print("Error executing Rust code:", e)
+        raise e
+
+    try:
+        result = json.loads(result_json)
+        solution = result.get("Solution")
+    except json.JSONDecodeError as e:
+        print("Error decoding JSON result:", e)
+        raise e
+
     firstLayout = solution.get("Layouts")[0]
     usage = firstLayout.get("Statistics").get("Usage")
     placedItems = firstLayout.get("PlacedItems")
@@ -68,7 +82,7 @@ def nest(nestRequest: NestRequest) -> NestResult:
         transforms.append(Transform(index, x, y, rotation))
 
     if totalPlacedItems == totalRequest:
-        dxf_entities = buildResultDxf(nestRequest, transforms)
+        dxf_entities = buildResultDxf(nest_request, transforms)
 
     return NestResult(usage, totalRequest, totalPlacedItems, dxf_entities)
 

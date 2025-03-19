@@ -1,14 +1,18 @@
 import time
 import datetime
 import io
+import ezdxf
 from pymongo import ReturnDocument
-from mongo import db, userDxfBucket
+from mongo import db, userDxfBucket, nestDxfBucket
 from dxf_utils import get_entity_primitives
 from groupy import group_dxf_entities_into_polygons
 from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest
 
+collection = db["nesting_jobs"]
+
 
 def doJob(nesting_job):
+    slug = nesting_job.get("slug")
     files = nesting_job.get("files")
     params = nesting_job.get("params")
     width = params.get("width")
@@ -34,11 +38,32 @@ def doJob(nesting_job):
         nest_polygones, width, height, space
     ))
 
+    collection.update_one(
+        {"_id": nesting_job["_id"]},
+        {"$set": {"usage": result.usage, "requested": result.requestCount,
+                  "placed": result.placedCount}}
+    )
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    for entity in result.dxf_entities:
+        msp.add_entity(entity)
+
+    ## use encode to "utf-8" to 
+    dxf_stream = io.TextIOWrapper()
+    doc.write(dxf_stream)
+    file_name = f"nesting_{slug}.dxf"
+    nestDxfBucket.upload_from_stream(file_name, dxf_stream)
+
+    collection.update_one(
+        {"_id": nesting_job["_id"]},
+        {"$set": {"status": "done", "finishedAt": datetime.datetime.now()}}
+    )
+
 
 # Run the worker
 print("Worker nestincg started at ", datetime.datetime.now())
 
-collection = db["nesting_jobs"]
 
 while True:
     print("Worker nesitng try to find a pending job")

@@ -34,3 +34,5 @@ db = client.get_default_database()
 
 userDxfBucket = gridfs.GridFSBucket(db, bucket_name="userDxf")
 userSvgBucket = gridfs.GridFSBucket(db, bucket_name="userSvg")
+
+nestDxfBucket = gridfs.GridFSBucket(db, bucket_name="nestDxf")
