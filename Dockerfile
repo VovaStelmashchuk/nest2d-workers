@@ -25,8 +25,6 @@ WORKDIR /app
 
 # Copy and install Python dependencies from requirements.txt
 COPY requirements.txt .
-COPY test.json /python/test.json
-COPY test.json .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the built wheel from the builder stage and install it

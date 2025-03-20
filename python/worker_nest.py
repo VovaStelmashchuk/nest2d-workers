@@ -44,16 +44,20 @@ def doJob(nesting_job):
                   "placed": result.placedCount}}
     )
 
-    doc = ezdxf.new()
+    doc = ezdxf.new('R2010')
     msp = doc.modelspace()
     for entity in result.dxf_entities:
         msp.add_entity(entity)
 
-    ## use encode to "utf-8" to 
-    dxf_stream = io.TextIOWrapper()
-    doc.write(dxf_stream)
+    text_stream = io.StringIO()
+    doc.write(text_stream)
+    dxf_text = text_stream.getvalue()
+    text_stream.close()
+
+    dxf_bytes = dxf_text.encode('utf-8')
+
     file_name = f"nesting_{slug}.dxf"
-    nestDxfBucket.upload_from_stream(file_name, dxf_stream)
+    nestDxfBucket.upload_from_stream(file_name, dxf_bytes)
 
     collection.update_one(
         {"_id": nesting_job["_id"]},
