@@ -7,6 +7,7 @@ from mongo import db, userDxfBucket, nestDxfBucket
 from dxf_utils import get_entity_primitives
 from groupy import group_dxf_entities_into_polygons
 from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest
+from svg_generator import create_svg_from_entities
 
 collection = db["nesting_jobs"]
 
@@ -58,6 +59,14 @@ def doJob(nesting_job):
 
     file_name = f"nesting_{slug}.dxf"
     nestDxfBucket.upload_from_stream(file_name, dxf_bytes)
+
+    collection.update_one(
+        {"_id": nesting_job["_id"]},
+        {"$set": {"dxf_file": file_name}}
+    )
+
+    svgContent = create_svg_from_entities(msp)
+    print(svgContent)
 
     collection.update_one(
         {"_id": nesting_job["_id"]},
