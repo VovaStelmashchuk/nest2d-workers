@@ -1,8 +1,9 @@
-The project is a worker for process the dxf files. Create for web application [Nest2d](https://nest2d.stelamashchuk.dev)
+The project is a worker for process the dxf files. Creates for web application [Nest2d](https://nest2d.stelmashchuk.dev/)
 
-The project is under development. The project does not have a goal to be universal dxf parser or etc. The project is created for a specific task.
+## Attention
 
-The project read the task from the MongoDB and process the DXF parsing, creating the polygons call other service for nesting and save the result to the MongoDB.
+The project is under development.
+The project does not have a goal to be universal dxf parser or etc because the project is created for a specific task.
 
 ## How to run
 
@@ -17,3 +18,13 @@ Run docker container for development, using bind to the current directory for ma
 ```
 docker run -it -v "$(pwd):/app" -w /app nest_app bash
 ```
+
+## Main idea how it works
+
+Parse dxf file and create a list of the polygons. Each polygon is a list of points.
+Than the data of polygones provides to jagua-rs library for creating a nest of the polygons, implement in rust.
+We use bridge between python and rust by using pyo3 library. Strongly recomend to use docker for easy setup and run the project.
+
+- `ezdxf` library is used for parsing dxf files
+- `shapely` library is used for creating polygons
+- `jagua-rs` library is used for creating a nest of polygons
