@@ -19,6 +19,20 @@ Run docker container for development, using bind to the current directory for ma
 docker run -it -v "$(pwd):/app" -w /app nest_app bash
 ```
 
+Setup environment variables (run in the container)
+
+```
+export SECRET_FILE=.secret.json
+```
+
+Sample of the secret file
+
+```json
+{
+  "mongoUri": "mongodb://<user>:<pass>@<ip>:27017/<db>"
+}
+```
+
 ## Main idea how it works
 
 Parse dxf file and create a list of the polygons. Each polygon is a list of points.
