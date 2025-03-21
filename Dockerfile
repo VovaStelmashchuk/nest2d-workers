@@ -20,10 +20,8 @@ RUN ls -la /app/jagua-rs/target/wheels/
 # Stage 2: Create the final runtime image
 FROM python:3.11-slim
 
-# Set the working directory
 WORKDIR /app
 
-# Copy and install Python dependencies from requirements.txt
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -31,8 +29,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --from=builder /app/jagua-rs/target/wheels/ /wheels/
 RUN pip install --no-cache-dir /wheels/*.whl
 
-# Copy the rest of the repository (including your Python app)
 COPY . .
 
-# Set the entrypoint to run your Python main app
-CMD ["python", "python/main.py"]
+CMD ["python", "python/worker_nest.py"]

@@ -7,16 +7,18 @@ The project does not have a goal to be universal dxf parser or etc because the p
 
 ## How to run
 
-Build docker image
+### Build docker image
+
+One docker image for both workers, we just change the commend into docker stack file
 
 ```
-docker build -t nest_app .
+docker build -t nest2d-workers:local .
 ```
 
 Run docker container for development, using bind to the current directory for make changes in the code
 
 ```
-docker run -it -v "$(pwd):/app" -w /app nest_app bash
+docker run -it -v "$(pwd):/app" -w /app nest2d-workers:local bash
 ```
 
 Setup environment variables (run in the container)
@@ -31,6 +33,18 @@ Sample of the secret file
 {
   "mongoUri": "mongodb://<user>:<pass>@<ip>:27017/<db>"
 }
+```
+
+### Run local docker stack
+
+Create a secret for docker stack
+
+```
+cat .secret.json | docker secret create nest2d-secret-dev -
+```
+
+```
+docker stack deploy -c docker-stack.dev.yml stack-test
 ```
 
 ## Main idea how it works

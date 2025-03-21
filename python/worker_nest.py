@@ -3,7 +3,7 @@ import datetime
 import io
 import ezdxf
 from pymongo import ReturnDocument
-from mongo import db, userDxfBucket, nestDxfBucket
+from mongo import db, userDxfBucket, nestDxfBucket, nestSvgBucket
 from dxf_utils import get_entity_primitives
 from groupy import group_dxf_entities_into_polygons
 from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest
@@ -57,16 +57,25 @@ def doJob(nesting_job):
 
     dxf_bytes = dxf_text.encode('utf-8')
 
-    file_name = f"nesting_{slug}.dxf"
-    nestDxfBucket.upload_from_stream(file_name, dxf_bytes)
+    dxf_file_name = f"{slug}.dxf"
+    nestDxfBucket.upload_from_stream(dxf_file_name, dxf_bytes)
 
     collection.update_one(
         {"_id": nesting_job["_id"]},
-        {"$set": {"dxf_file": file_name}}
+        {"$set": {"dxf_file": dxf_file_name}}
     )
 
-    svgContent = create_svg_from_entities(msp)
-    print(svgContent)
+    svg_content = create_svg_from_entities(msp)
+
+    svg_file_name = f"{slug}.svg"
+    nestSvgBucket.upload_from_stream(
+        svg_file_name,
+        io.BytesIO(svg_content.encode("utf-8"))
+    )
+    collection.update_one(
+        {"_id": nesting_job["_id"]},
+        {"$set": {"svg_file": svg_file_name}}
+    )
 
     collection.update_one(
         {"_id": nesting_job["_id"]},
