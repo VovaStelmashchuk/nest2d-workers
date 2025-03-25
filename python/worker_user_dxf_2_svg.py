@@ -1,5 +1,5 @@
 import io
-from svg_generator import create_svg_from_entities
+from svg_generator import create_svg_from_modelspace
 from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, userSvgBucket
 import time
@@ -12,6 +12,7 @@ collection = db["projects"]
 
 
 def doJobProject(project_doc):
+    print("Processing project: ", project_doc["_id"])
     _id = project_doc["_id"]
     dxfArray = project_doc["dxf"]
 
@@ -33,10 +34,9 @@ def doJobProject(project_doc):
                 fileSlug)
 
             dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
-            project_doc = ezdxf.read(dxf_stream)
-            msp = project_doc.modelspace()
+            dxf_doc = ezdxf.read(dxf_stream)
 
-            svg_content = create_svg_from_entities(msp)
+            svg_content = create_svg_from_modelspace(dxf_doc)
 
             svg_file_name = f"{fileSlug}.svg"
             userSvgBucket.upload_from_stream(
@@ -45,7 +45,13 @@ def doJobProject(project_doc):
             )
             collection.update_one(
                 {"_id": _id, "dxf.slug": fileSlug},
-                {"$set": {"dxf.$.svgExists": True, "dxf.$.processingStatus": "done"}}
+                {"$set":
+                 {
+                     "dxf.$.svgExists": True,
+                     "dxf.$.processingStatus": "done",
+                     "dxf.$.svgFile": svg_file_name
+                 }
+                 }
             )
         except Exception as e:
             print("Error: ", e)

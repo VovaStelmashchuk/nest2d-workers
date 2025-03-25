@@ -21,9 +21,10 @@ class DXFEntityPrimitives:
 
     def __init__(self, entity):
         self.entity: DXFEntity = entity
-        self.primitives = []  # List to store the associated primitives
+        # List to store the associated primitives
+        self.primitives: list[Primitive] = []
 
-    def add_primitive(self, primitive):
+    def add_primitive(self, primitive: Primitive):
         """Add a primitive to the list."""
         self.primitives.append(primitive)
 
