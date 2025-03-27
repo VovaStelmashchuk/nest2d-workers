@@ -81,6 +81,7 @@ def nest(nest_request: NestRequest) -> NestResult:
         y = translation[1]
         transforms.append(Transform(index, x, y, rotation))
 
+    dxf_entities = []
     if totalPlacedItems == totalRequest:
         dxf_entities = buildResultDxf(nest_request, transforms)
 
