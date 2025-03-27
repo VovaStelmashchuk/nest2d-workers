@@ -21,6 +21,8 @@ def create_svg_from_modelspace(doc, max_flattening_distance=0.01):
         background_policy=config.BackgroundPolicy.OFF,
         color_policy=config.ColorPolicy.BLACK,
         max_flattening_distance=max_flattening_distance,
+        lineweight_policy = config.LineweightPolicy.ABSOLUTE,
+        lineweight_scaling = 2.0
     )
     frontend = Frontend(context, backend, cfg)
 

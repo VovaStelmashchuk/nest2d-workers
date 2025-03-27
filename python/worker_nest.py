@@ -92,7 +92,7 @@ while True:
 
     nesting_job = collection.find_one_and_update(
         {"status": "pending"},
-        {"$set": {"status": "pending"}},
+        {"$set": {"status": "processing"}},
         return_document=ReturnDocument.AFTER
     )
 
