@@ -25,6 +25,32 @@ services:
       update_config:
         order: start-first
 
+  nesing-worker-dev:
+    image: ghcr.io/vovastelmashchuk/nest2d-workers:${GIT_COMMIT_SHA:-latest}
+    environment:
+      - SECRET_FILE=/run/secrets/nest2d-secret-dev
+      - PYTHONUNBUFFERED=1
+    command: ["python", "python/worker_nest.py"]
+    secrets:
+      - nest2d-secret-dev
+    deploy:
+      update_config:
+        order: start-first
+
+  userdxf2svg-worker-dev:
+    image: ghcr.io/vovastelmashchuk/nest2d-workers:${GIT_COMMIT_SHA:-latest}
+    environment:
+      - SECRET_FILE=/run/secrets/nest2d-secret-dev
+      - PYTHONUNBUFFERED=1
+    command: ["python", "python/worker_user_dxf_2_svg.py"]
+    secrets:
+      - nest2d-secret-dev
+    deploy:
+      update_config:
+        order: start-first
+
 secrets:
   nest2d-secret:
+    external: true
+  nest2d-secret-dev:
     external: true
