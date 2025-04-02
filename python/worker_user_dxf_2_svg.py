@@ -5,6 +5,7 @@ from mongo import db, userDxfBucket, userSvgBucket
 import time
 import datetime
 import ezdxf
+from dxf_utils import read_dxf
 
 print("Worker dxf to svg started at ", datetime.datetime.now())
 
@@ -34,7 +35,7 @@ def doJobProject(project_doc):
                 fileSlug)
 
             dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
-            dxf_doc = ezdxf.read(dxf_stream)
+            dxf_doc = read_dxf(dxf_stream)
 
             svg_content = create_svg_from_modelspace(dxf_doc)
 

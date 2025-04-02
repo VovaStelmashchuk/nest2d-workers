@@ -7,7 +7,9 @@ from ezdxf.disassemble import (
     recursive_decompose,
     to_primitives
 )
+from ezdxf.document import Drawing
 from ezdxf.entities.dxfentity import DXFEntity
+from ezdxf.layouts.layout import Modelspace
 
 
 class DXFEntityPrimitives:
@@ -80,6 +82,28 @@ def get_entity_primitives(dxf_stream, max_flattening_distance=0.01) -> list[DXFE
     Returns:
         List[DXFEntityPrimitives]: A list of DXFEntityPrimitives objects extracted from the DXF.
     """
-    doc = ezdxf.read(dxf_stream)
+    doc = read_dxf(dxf_stream)
     msp = doc.modelspace()
     return extract_entity_primitives(msp, max_flattening_distance=max_flattening_distance)
+
+
+def read_dxf(dxf_stream) -> Drawing:
+    """
+    Reads a DXF stream and returns the modelspace without entities TEXT and MTEXT.
+
+    Parameters:
+        dxf_stream: The DXF string to process.
+
+    Returns:
+        Modelspace: The modelspace of the DXF document.
+    """
+    doc = ezdxf.read(dxf_stream)
+    msp = doc.modelspace()
+
+    text_entities = [entity for entity in msp if entity.dxftype()
+                     in ("TEXT", "MTEXT")]
+
+    for entity in text_entities:
+        msp.delete_entity(entity)
+
+    return doc
