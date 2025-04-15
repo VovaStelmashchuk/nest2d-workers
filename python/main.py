@@ -106,28 +106,47 @@ def closed_entities_to_polygons(
 
 def open_entities_to_polygons(
     entities: Iterable[DXFEntity],
-    gap_tol: float = GAP_TOL,
+    flatten_tol: float = 0.1,
 ) -> List[Polygon]:
-    if not entities:
-        return []
-    edges = list(edges_from_entities_2d(entities, gap_tol=gap_tol))
-    print(f"Extracted {len(edges)} edges from open entities")
+    """Build polygons from *open* entities.
 
-    if not edges:
-        return []
+    1.  Every entity is flattened with the given tolerance → sequence of
+        points in drawing order.
+    2.  Consecutive point pairs are converted to individual Shapely
+        ``LineString`` objects.
+    3.  All segments are sent to ``shapely.ops.polygonize`` which stitches
+        them together into as many closed polygons as can be found.
 
-    loops: Sequence[Sequence] = find_all_loops(Deposit(edges, gap_tol=gap_tol))
-    print(f"Found {len(loops)} edge‑loops")
+    Compared to the previous edge‑miner approach this handles arcs, bulge
+    segments and splines transparently because they are already reduced to
+    straight segments before polygonisation.
+    """
+    from shapely.geometry import LineString
+    from shapely.ops import polygonize
 
-    polys: List[Polygon] = []
-    for i, loop in enumerate(loops, 1):
-        ring = [(edge.start.x, edge.start.y) for edge in loop]
-        ring.append(ring[0])
-        poly = Polygon(ring)
-        if poly.is_valid and not poly.is_empty:
-            polys.append(poly)
-        else:
-            print(f"⚠️  Loop #{i} invalid, skipped")
+    segments: list[LineString] = []
+
+    for ent in entities:
+        try:
+            # ezdxf entities expose .flattening(tol) for geometric sampling
+            pts = [(v.x, v.y) for v in ent.flattening(0.1)]
+        except AttributeError:
+            # fallback for entities without .flattening() (should be rare)
+            if ent.dxftype() == "LINE":
+                pts = [(ent.dxf.start.x, ent.dxf.start.y),
+                       (ent.dxf.end.x, ent.dxf.end.y)]
+            else:
+                print(f"⚠️  Cannot flatten {ent.dxftype()} – skipped")
+                continue
+        # build segment list
+        for p1, p2 in zip(pts, pts[1:]):
+            if p1 != p2:
+                segments.append(LineString([p1, p2]))
+
+    print(f"Generated {len(segments)} straight segments from open entities")
+
+    polys = [p for p in polygonize(segments) if p.is_valid and not p.is_empty]
+    print(f"Polygonize() produced {len(polys)} polygon(s) from open entities")
     return polys
 
 # --------------------------------------------------------------------------- #
@@ -170,7 +189,7 @@ def process_dxf(path: str, gap_tol: float, spline_tol: float):
 
     polys = (
         closed_entities_to_polygons(closed, spline_tol=spline_tol) +
-        open_entities_to_polygons(open_, gap_tol=gap_tol)
+        open_entities_to_polygons(open_, flatten_tol=gap_tol)
     )
 
     print(f"Total polygons produced : {len(polys)}")
