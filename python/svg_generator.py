@@ -4,7 +4,7 @@ from ezdxf.addons.drawing import svg
 from ezdxf.addons.drawing import Frontend, RenderContext, svg, layout, config
 
 
-def create_svg_from_modelspace(doc, max_flattening_distance=0.01):
+def create_svg_from_doc(doc, max_flattening_distance=0.01):
     msp = doc.modelspace()
     doc_bbox = bbox.extents(msp)
 

@@ -10,6 +10,8 @@ from ezdxf.disassemble import (
 from ezdxf.document import Drawing
 from ezdxf.entities.dxfentity import DXFEntity
 from ezdxf.layouts.layout import Modelspace
+from typing import Iterable
+from ezdxf.path import Path
 
 
 class DXFEntityPrimitives:
@@ -30,7 +32,7 @@ class DXFEntityPrimitives:
         """Add a primitive to the list."""
         self.primitives.append(primitive)
 
-    def get_paths(self):
+    def get_paths(self) -> Iterable[Path]:
         return to_paths(self.primitives)
 
 

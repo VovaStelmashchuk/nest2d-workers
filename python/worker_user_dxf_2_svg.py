@@ -1,5 +1,5 @@
 import io
-from svg_generator import create_svg_from_modelspace
+from svg_generator import create_svg_from_doc
 from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, userSvgBucket
 import time
@@ -37,7 +37,7 @@ def doJobProject(project_doc):
             dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
             dxf_doc = read_dxf(dxf_stream)
 
-            svg_content = create_svg_from_modelspace(dxf_doc)
+            svg_content = create_svg_from_doc(dxf_doc)
 
             svg_file_name = f"{fileSlug}.svg"
             userSvgBucket.upload_from_stream(
