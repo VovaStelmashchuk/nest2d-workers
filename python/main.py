@@ -129,7 +129,7 @@ def open_entities_to_polygons(
     for ent in entities:
         try:
             # ezdxf entities expose .flattening(tol) for geometric sampling
-            pts = [(v.x, v.y) for v in ent.flattening(0.1)]
+            pts = [(v.x, v.y) for v in ent.flattening(1.0)]
         except AttributeError:
             # fallback for entities without .flattening() (should be rare)
             if ent.dxftype() == "LINE":
