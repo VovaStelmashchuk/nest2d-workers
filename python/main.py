@@ -10,21 +10,26 @@ Extract every closed region from a DXF file and plot it.
 """
 
 from __future__ import annotations
+from shapely.prepared import prep
+from typing import List
 import sys
 from typing import Iterable, List, Sequence
 
 import ezdxf
+from ezdxf.disassemble import make_primitive, recursive_decompose
 from ezdxf.entities import DXFEntity
 from ezdxf.edgeminer import Deposit, find_all_loops
 from ezdxf.edgesmith import edges_from_entities_2d, is_closed_entity
 from ezdxf.math import Vec3
 from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
-
+from typing import Iterable, List
+from shapely.geometry import LineString, MultiLineString, Polygon, MultiPolygon
+from shapely.ops import unary_union, polygonize
 # --------------------------------------------------------------------------- #
 # Tunables (can be overridden from CLI)                                       #
 # --------------------------------------------------------------------------- #
-GAP_TOL = 1       # for joining endpoints when building edge‑loops
+GAP_TOL = 0.1       # for joining endpoints when building edge‑loops
 SPLINE_TOL = 0.1    # max distance between a spline and its polyline approx.
 ELIGIBLE = {
     "LINE", "ARC", "ELLIPSE", "SPLINE", "LWPOLYLINE", "POLYLINE", "CIRCLE",
@@ -106,47 +111,64 @@ def closed_entities_to_polygons(
 
 def open_entities_to_polygons(
     entities: Iterable[DXFEntity],
-    flatten_tol: float = 0.1,
+    flatten_tol: float,
+    snap_tol: float,
 ) -> List[Polygon]:
-    """Build polygons from *open* entities.
-
-    1.  Every entity is flattened with the given tolerance → sequence of
-        points in drawing order.
-    2.  Consecutive point pairs are converted to individual Shapely
-        ``LineString`` objects.
-    3.  All segments are sent to ``shapely.ops.polygonize`` which stitches
-        them together into as many closed polygons as can be found.
-
-    Compared to the previous edge‑miner approach this handles arcs, bulge
-    segments and splines transparently because they are already reduced to
-    straight segments before polygonisation.
     """
-    from shapely.geometry import LineString
-    from shapely.ops import polygonize
+    Build polygons from *open* entities.
+
+    Parameters
+    ----------
+    entities     : iterable of DXFEntity
+    flatten_tol  : sampling tolerance used when flattening curves
+    snap_tol     : grid size for snapping vertices (defaults to 0.5 * flatten_tol)
+
+    Returns
+    -------
+    list[Polygon]
+        All polygons Shapely can form from the given geometry.
+    """
+
+    def snap(pt):
+        """Snap point to grid of size `snap_tol`."""
+        return (
+            round(pt[0] / snap_tol) * snap_tol,
+            round(pt[1] / snap_tol) * snap_tol,
+        )
 
     segments: list[LineString] = []
 
+    # ------------------------------------------------------------------ collect
     for ent in entities:
-        try:
-            # ezdxf entities expose .flattening(tol) for geometric sampling
-            pts = [(v.x, v.y) for v in ent.flattening(1.0)]
-        except AttributeError:
-            # fallback for entities without .flattening() (should be rare)
-            if ent.dxftype() == "LINE":
-                pts = [(ent.dxf.start.x, ent.dxf.start.y),
-                       (ent.dxf.end.x, ent.dxf.end.y)]
-            else:
-                print(f"⚠️  Cannot flatten {ent.dxftype()} – skipped")
-                continue
-        # build segment list
-        for p1, p2 in zip(pts, pts[1:]):
-            if p1 != p2:
-                segments.append(LineString([p1, p2]))
+        prim = make_primitive(ent, flatten_tol)
+        verts = list(prim.vertices())
+        if len(verts) < 2:
+            continue
 
-    print(f"Generated {len(segments)} straight segments from open entities")
+        # build LineStrings between consecutive vertices
+        for a, b in zip(verts, verts[1:]):
+            pa = snap((a.x, a.y))
+            pb = snap((b.x, b.y))
+            if pa != pb:                       # avoid zero‑length artefacts
+                segments.append(LineString([pa, pb]))
 
-    polys = [p for p in polygonize(segments) if p.is_valid and not p.is_empty]
-    print(f"Polygonize() produced {len(polys)} polygon(s) from open entities")
+    if not segments:
+        return []
+
+    # --------------------------------------------------------- clean & polygonise
+    merged = unary_union(segments)             # dissolve dups / overlaps
+    if isinstance(merged, LineString):         # happens for single segment
+        merged = MultiLineString([merged])
+
+    polys = [
+        p for p in polygonize(merged)
+        if p.is_valid and not p.is_empty
+    ]
+    print(
+        f"open_entities_to_polygons(): "
+        f"{len(segments)} segments → {len(polys)} polygons "
+        f"(flatten_tol={flatten_tol}, snap_tol={snap_tol})"
+    )
     return polys
 
 # --------------------------------------------------------------------------- #
@@ -168,6 +190,41 @@ def plot_polygons(polys: List[Polygon], title="DXF polygons"):
 # Main driver                                                                 #
 # --------------------------------------------------------------------------- #
 
+def keep_only_outer(polys: List[Polygon]) -> List[Polygon]:
+    """
+    Return a new list that contains no polygon which is completely
+    inside (or exactly equal to) another polygon from the same list.
+    """
+    # largest area first – makes the containment test cheap
+    polys_sorted = sorted(polys, key=lambda p: p.area, reverse=True)
+
+    outers: List[Polygon] = []
+    prepared: List = []            # prepared geometries for fast 'covers'
+
+    for poly in polys_sorted:
+        # is poly completely covered by any already‑kept outer polygon?
+        if any(pp.covers(poly) for pp in prepared):
+            continue               # → it's a hole, skip
+        outers.append(poly)
+        prepared.append(prep(poly))  # cache prepared version for speed
+
+    return outers
+
+def merge_touching(polys: List[Polygon]) -> List[Polygon]:
+    """
+    Return a list in which any polygons that share an edge *or* overlap
+    are merged into a single polygon.
+    """
+    merged = unary_union(polys)          # one big geometry
+
+    # explode back into a flat list
+    if isinstance(merged, Polygon):
+        return [merged]
+    elif isinstance(merged, MultiPolygon):
+        return list(merged.geoms)
+    else:                                # unlikely (e.g. GeometryCollection)
+        return [g for g in merged.geoms if isinstance(g, Polygon)]
+
 
 def process_dxf(path: str, gap_tol: float, spline_tol: float):
     print(f"Reading {path!r}")
@@ -177,22 +234,27 @@ def process_dxf(path: str, gap_tol: float, spline_tol: float):
         sys.exit(f"❌  {exc}")
 
     msp = doc.modelspace()
-    ents = [e for e in msp if e.dxftype() in ELIGIBLE]
+    ents = [
+        e for e in recursive_decompose(msp)
+        if e.dxftype() in ELIGIBLE
+    ]
 
-    closed, open_ = [], []
+    closed, open = [], []
     for e in ents:
-        (closed if is_closed_entity(e) else open_).append(e)
+        (closed if is_closed_entity(e) else open).append(e)
 
     print(f"Total eligible entities : {len(ents)}")
     print(f"  closed entities       : {len(closed)}")
-    print(f"  open entities         : {len(open_)}")
+    print(f"  open entities         : {len(open)}")
 
     polys = (
         closed_entities_to_polygons(closed, spline_tol=spline_tol) +
-        open_entities_to_polygons(open_, flatten_tol=gap_tol)
+        open_entities_to_polygons(open, flatten_tol=gap_tol, snap_tol=gap_tol)
     )
 
     print(f"Total polygons produced : {len(polys)}")
+    polys = keep_only_outer(polys)
+    polys = merge_touching(polys)
     plot_polygons(polys, "DXF closed regions")
 
 
