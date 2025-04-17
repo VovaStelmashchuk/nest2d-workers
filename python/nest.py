@@ -3,15 +3,16 @@ from ezdxf import transform
 from ezdxf.entities import DXFGraphic
 import json
 import nest_rust
+from polygone import DxfPolygon
 
 
 class NestPolygone:
     def __init__(self, polygone_group, count):
-        self.polygone_group: DXFPolygonGroup = polygone_group
+        self.polygone_group: DxfPolygon = polygone_group
         self.count: int = count
 
     def __str__(self) -> str:
-        return f"NestPolygone -> Count: {self.count}, PolygoneGroup: {self.polygone_group}"
+        return f"NestPolygone -> Count: {self.count}, DxfPolygon: {self.polygone_group}"
 
 
 class NestRequest:
