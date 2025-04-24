@@ -4,8 +4,8 @@ from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, userSvgBucket
 import time
 import datetime
-import ezdxf
 from dxf_utils import read_dxf
+import traceback
 
 print("Worker dxf to svg started at ", datetime.datetime.now())
 
@@ -56,6 +56,7 @@ def doJobProject(project_doc):
             )
         except Exception as e:
             print("Error: ", e)
+            print(traceback.format_exc())
             collection.update_one(
                 {"_id": _id, "dxf.slug": fileSlug},
                 {"$set": {"dxf.$.processingStatus": "error",

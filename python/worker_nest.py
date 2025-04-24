@@ -2,12 +2,13 @@ import time
 import datetime
 import io
 import ezdxf
+from typing import List
 from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, nestDxfBucket, nestSvgBucket
-from dxf_utils import get_entity_primitives
-from groupy import group_dxf_entities_into_polygons
 from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest
 from svg_generator import create_svg_from_doc
+from polygone import DxfPolygon, process 
+import traceback
 
 collection = db["nesting_jobs"]
 
@@ -28,15 +29,13 @@ def doJob(nesting_job):
 
         binary_stream = userDxfBucket.open_download_stream_by_name(fileSlug)
         dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
-        dxf_entities = get_entity_primitives(dxf_stream)
-        polygon_groups = group_dxf_entities_into_polygons(
-            dxf_entities, tolerance)
+        dxf_polygones :List[DxfPolygon] = process(dxf_stream, tolerance)
 
-        for group in polygon_groups:
+        for group in dxf_polygones:
             nest_polygones.append(NestPolygone(group, fileCount))
 
     result: NestResult = nest(NestRequest(
-        nest_polygones, width, height, space
+        nest_polygones, width, height, space, tolerance
     ))
 
     collection.update_one(
@@ -105,6 +104,7 @@ while True:
         doJob(nesting_job)
     except Exception as e:
         print("Error: ", e)
+        print(traceback.format_exc())
         collection.update_one(
             {"_id": nesting_job["_id"]},
             {"$set": {"status": "error", "error": str(e)}}

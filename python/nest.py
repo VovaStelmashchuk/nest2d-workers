@@ -1,9 +1,9 @@
-from groupy import DXFPolygonGroup
 from ezdxf import transform
 from ezdxf.entities import DXFGraphic
 import json
 import nest_rust
 from polygone import DxfPolygon
+from shapely.geometry import Polygon
 
 
 class NestPolygone:
@@ -16,11 +16,12 @@ class NestPolygone:
 
 
 class NestRequest:
-    def __init__(self, files: list[NestPolygone], width: float, height: float, spacing: float):
+    def __init__(self, files: list[NestPolygone], width: float, height: float, spacing: float, tolerance: float):
         self.items: list[NestPolygone] = files
         self.width = width
         self.height = height
         self.spacing = spacing
+        self.tolerance = tolerance 
 
 
 class NestResult:
@@ -94,16 +95,15 @@ def buildResultDxf(nestRequest: NestRequest, transforms) -> list[DXFGraphic]:
     # Process each transformation
     for innerTransform in transforms:
         # Get the corresponding NestPolygone (or DXF entity group)
-        nest_poly = nestRequest.items[innerTransform.fileIndex]
+        nest_poly: NestPolygone = nestRequest.items[innerTransform.fileIndex]
         entities = []
-        for i in range(len(nest_poly.polygone_group.dxf_entities)):
+        for i in range(len(nest_poly.polygone_group.entities)):
+            nest_poly.polygone_group.entities[i]
             # Add all entities to the List
-            entities.append(
-                nest_poly.polygone_group.dxf_entities[i].entity.copy())
+            entities.append(nest_poly.polygone_group.entities[i].copy())
 
         rotationMatrix = transform.Matrix44.z_rotate(innerTransform.angle)
-        translationMatrix = transform.Matrix44.translate(
-            innerTransform.x, innerTransform.y, 0)
+        translationMatrix = transform.Matrix44.translate(innerTransform.x, innerTransform.y, 0)
 
         transform.inplace(entities, m=rotationMatrix * translationMatrix)
         for entity in entities:
@@ -152,7 +152,7 @@ def buildNestRequestObject(nestRequest: NestRequest):
                     "n_ff_piers": 0
                 }
             },
-            "poly_simpl_tolerance": 0.001,
+            "poly_simpl_tolerance": nestRequest.tolerance,
             "prng_seed": 0,
             "n_samples": 500000,
             "ls_frac": 0.2
@@ -164,14 +164,14 @@ def buildRequestItems(nestRequest: NestRequest):
     data = []
     for file in nestRequest.items:
         fileItems = convertPolygoneGroupToJaguarRequest(
-            file.polygone_group, file.count, nestRequest.spacing)
+            file.polygone_group, file.count, nestRequest.spacing, nestRequest.tolerance)
         data.extend(fileItems)
     return data
 
 
-def convertPolygoneGroupToJaguarRequest(grop: DXFPolygonGroup, count: int, spacing: float) -> list[dict]:
+def convertPolygoneGroupToJaguarRequest(grop: DxfPolygon, count: int, spacing: float, tolerance: float) -> list[dict]:
     items = []
-    poly = grop.polygon
+    poly: Polygon = grop.polygon
     if poly.is_empty:
         return []
 
@@ -179,9 +179,12 @@ def convertPolygoneGroupToJaguarRequest(grop: DXFPolygonGroup, count: int, spaci
 
     xs, ys = poly.exterior.xy
     points: list[list[float]] = []
+    # add poinst but skip if previus point is the same , based on tolerance
     for i in range(len(xs)):
+        if i > 0 and abs(xs[i] - xs[i - 1]) < tolerance and abs(ys[i] - ys[i - 1]) < tolerance:
+            continue
         points.append([xs[i], ys[i]])
-
+    
     items.append({
         "Demand": count,
         "AllowedOrientations": [0, 90, 180, 270],

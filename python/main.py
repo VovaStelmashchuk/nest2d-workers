@@ -2,9 +2,6 @@ from polygone import DxfPolygon, process
 import matplotlib.pyplot as plt
 from typing import Iterable, List, Sequence, Dict
 import sys
-# --------------------------------------------------------------------------
-# plotting ------------------------------------------------------------------
-# --------------------------------------------------------------------------
 
 def plot_items(items: List[DxfPolygon], title="DXF closed regions"):
     fig, ax = plt.subplots()
@@ -24,7 +21,7 @@ if __name__ == "__main__":
     filePath = sys.argv[1]
     fileStream = open(filePath, "r")
 
-    result = process(fileStream)
+    result = process(fileStream, 0.01)
     for res in result:
         print(res.polygon)
         print(res.entities)

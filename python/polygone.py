@@ -34,7 +34,8 @@ from shapely.ops import unary_union, polygonize
 
 @dataclass
 class DxfPolygon:
-    """A closed region extracted from a DXF drawing."""
+    """A closed region extracted from a DXF drawing.
+    Which contains a list of DXF entities that produced it."""
 
     polygon: Polygon               # the geometry (2‑D)
     entities: list[DXFEntity]      # all DXF entities that produced it
@@ -43,9 +44,6 @@ class DxfPolygon:
         if not self.polygon.is_valid or self.polygon.is_empty:
             raise ValueError("polygon must be a valid, non‑empty geometry")
 
-# ‑‑‑ constants -------------------------------------------------------------
-GAP_TOL     = 0.1   # sampling / snapping grid for open geometry
-SPLINE_TOL  = 0.1   # flattening tol for splines / circles / ellipses
 ELIGIBLE = {
     "LINE", "ARC", "ELLIPSE", "SPLINE", "LWPOLYLINE", "POLYLINE", "CIRCLE",
 }
@@ -66,24 +64,35 @@ def _poly_from_polyline(e):
         pts.append(pts[0])
     return Polygon(pts)
 
-def _poly_from_circle_like(e, tol=SPLINE_TOL):
-    pts = [(v.x, v.y) for v in e.flattening(tol)]
+def _poly_from_circle(e: DXFEntity, tol):
+    primitive = make_primitive(e, tol)
+
+    pts = [(v.x, v.y) for v in primitive.path.flattening(tol)]
     if pts[0] != pts[-1]:
         pts.append(pts[0])
     return Polygon(pts)
 
-def _poly_from_spline(e, tol=SPLINE_TOL):
-    tool = e.construction_tool()
+def _poly_from_circle_like(e: DXFEntity, tol):
+    primitive = make_primitive(e, tol)
+
+    pts = [(v.x, v.y) for v in primitive.path.flattening(tol)]
+    if pts[0] != pts[-1]:
+        pts.append(pts[0])
+    return Polygon(pts)
+
+def _poly_from_spline(e, tol):
     if not is_closed_entity(e):
         raise ValueError("open spline")
-    pts = [(v.x, v.y) for v in tool.flattening(tol)]
+    primitive = make_primitive(e, tol)
+
+    pts = [(v.x, v.y) for v in primitive.path.flattening(tol)]
     if pts[0] != pts[-1]:
         pts.append(pts[0])
     return Polygon(pts)
 
 def closed_entities_to_polys_with_src(
     entities: Iterable[DXFEntity],
-    spline_tol: float = SPLINE_TOL,
+    spline_tol: float,
 ) -> List[DxfPolygon]:
     out: list[DxfPolygon] = []
     for e in entities:
@@ -94,7 +103,7 @@ def closed_entities_to_polys_with_src(
             elif dxftype == "POLYLINE":
                 p = _poly_from_polyline(e)
             elif dxftype == "CIRCLE":
-                p = _poly_from_circle_like(e, tol=spline_tol)
+                p = _poly_from_circle(e, tol=spline_tol)
             elif dxftype == "ARC":
                 if abs(e.dxf.end_angle - e.dxf.start_angle) % 360 != 0:
                     print(f"⚠️  Skipping open ARC {e.dxf.handle}")
@@ -112,7 +121,7 @@ def closed_entities_to_polys_with_src(
                 continue
             out.append(DxfPolygon(polygon=p, entities=[e]))
         except Exception as exc:
-            print(f"Error converting {e.dxf.handle}: {exc}")
+            print(f"Error converting {e.dxftype()} {e.dxf.handle}: {exc}")
     return out
 
 # --------------------------------------------------------------------------- #
@@ -122,12 +131,9 @@ def closed_entities_to_polys_with_src(
 
 def open_entities_to_polys_with_src(
     entities: Iterable[DXFEntity],
-    flatten_tol: float = 0.1,
-    snap_tol: float | None = None,
+    flatten_tol: float,
+    snap_tol: float, 
 ) -> List[DxfPolygon]:
-    if snap_tol is None:
-        snap_tol = 0.5 * flatten_tol
-
     def snap(pt):
         return (
             round(pt[0] / snap_tol) * snap_tol,
@@ -219,7 +225,7 @@ def plot_polygons(polys: List[DxfPolygon], title="DXF polygons"):
 # Main processing routine (strongly typed)                                    #
 # --------------------------------------------------------------------------- #
 
-def process(dxf_stream: TextIO, tol: float = GAP_TOL) -> List[DxfPolygon]:
+def process(dxf_stream: TextIO, tol: float) -> List[DxfPolygon]:
     """Read *dxf_stream* and extract outer polygons.
 
     Parameters
@@ -247,7 +253,7 @@ def process(dxf_stream: TextIO, tol: float = GAP_TOL) -> List[DxfPolygon]:
 
     items: List[DxfPolygon] = (
         closed_entities_to_polys_with_src(closed_ents, spline_tol=tol) +
-        open_entities_to_polys_with_src(open_ents, flatten_tol=tol)
+        open_entities_to_polys_with_src(open_ents, flatten_tol=tol, snap_tol=tol)
     )
 
     items = keep_only_outer(items)
