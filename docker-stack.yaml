@@ -10,6 +10,10 @@ services:
     secrets:
       - nest2d-secret
     deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
       update_config:
         order: start-first
 
@@ -22,6 +26,10 @@ services:
     secrets:
       - nest2d-secret
     deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
       update_config:
         order: start-first
 
@@ -34,6 +42,10 @@ services:
     secrets:
       - nest2d-secret-dev
     deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
       update_config:
         order: start-first
 
@@ -46,6 +58,10 @@ services:
     secrets:
       - nest2d-secret-dev
     deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
       update_config:
         order: start-first
 
