@@ -11,7 +11,7 @@ from polygone import DxfPolygon, process
 import traceback
 
 collection = db["nesting_jobs"]
-
+users_collection = db["users"]
 
 def doJob(nesting_job):
     slug = nesting_job.get("slug")
@@ -21,6 +21,12 @@ def doJob(nesting_job):
     height = params.get("height")
     tolerance = params.get("tolerance")
     space = params.get("space")
+
+    start_at = datetime.datetime.now()
+    collection.update_one(
+        {"_id": nesting_job["_id"]},
+        {"$set": {"startAt": start_at}}
+    )
 
     nest_polygones = []
     for file in files:
@@ -43,6 +49,9 @@ def doJob(nesting_job):
         {"$set": {"usage": result.usage, "requested": result.requestCount,
                   "placed": result.placedCount}}
     )
+
+    if (result.placedCount != result.requestCount):
+        raise Exception("Not all items could be placed in the nesting job")
 
     doc = ezdxf.new('R2010')
     msp = doc.modelspace()
@@ -76,9 +85,30 @@ def doJob(nesting_job):
         {"$set": {"svg_file": svg_file_name}}
     )
 
+    finishAt = datetime.datetime.now()
+    time_taken = finishAt - start_at
+
+    minutes_taken = int(time_taken.total_seconds() / 60)
+    
     collection.update_one(
         {"_id": nesting_job["_id"]},
-        {"$set": {"status": "done", "finishedAt": datetime.datetime.now()}}
+        {
+            "$set": {
+                "status": "done", 
+                "finishedAt": finishAt, 
+                "timeTaken": minutes_taken
+            }
+        }
+    )
+    user_id = nesting_job.get("ownerId")
+    users_collection.update_one(
+        {"id": user_id},
+        {
+            "$inc": {
+                "nestingJobs": 1,
+                "nestingTimeInMinute": minutes_taken
+            }
+        }
     )
 
 
