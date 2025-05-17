@@ -1,7 +1,7 @@
 from ezdxf import bbox
 from ezdxf.addons.drawing import RenderContext, Frontend, layout
-from ezdxf.addons.drawing import svg
 from ezdxf.addons.drawing import Frontend, RenderContext, svg, layout, config
+from svg_backend_with_handle import SVGBackendWithHandle
 
 
 def create_svg_from_doc(doc, max_flattening_distance=0.01):
@@ -12,7 +12,7 @@ def create_svg_from_doc(doc, max_flattening_distance=0.01):
     drawing_height = doc_bbox.extmax[1] - doc_bbox.extmin[1]
 
     context = RenderContext(doc)
-    backend = svg.SVGBackend()
+    backend = SVGBackendWithHandle()
 
     cfg = config.Configuration(
         background_policy=config.BackgroundPolicy.OFF,

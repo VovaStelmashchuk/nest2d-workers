@@ -26,6 +26,7 @@ from ezdxf import read
 from ezdxf.disassemble import make_primitive, recursive_decompose
 from ezdxf.entities import DXFEntity
 from ezdxf.edgesmith import is_closed_entity
+from matplotlib import pyplot as plt
 from shapely.geometry import Polygon, LineString, MultiLineString, MultiPolygon
 from shapely.ops import unary_union, polygonize
 from shapely.prepared import prep
