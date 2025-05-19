@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Iterable, List, Sequence, Dict, TextIO
+from typing import Iterable, List, Sequence, Dict, TextIO, Any
 
 import ezdxf
 from ezdxf import read
@@ -32,6 +32,7 @@ from shapely.ops import unary_union, polygonize
 from shapely.prepared import prep
 from shapely.geometry import LineString, MultiLineString
 from shapely.ops import unary_union, polygonize
+from dxf_utils import read_dxf
 
 @dataclass
 class DxfPolygon:
@@ -261,3 +262,48 @@ def process(dxf_stream: TextIO, tol: float) -> List[DxfPolygon]:
     items = merge_touching(items)
 
     return items
+
+def find_closed_polygons(dxf_path: str, tolerance: float) -> List[Dict[str, Any]]:
+    """
+    Loads a DXF file, finds all closed polygons, and returns their vertices and source entities.
+
+    Args:
+        dxf_path (str): Path to the DXF file.
+        tolerance (float): Gap tolerance for edge joining and flattening.
+
+    Returns:
+        List[Dict]: Each dict contains:
+            - 'vertices': ordered list of 2D points (tuples)
+            - 'entities': list of original DXF entity references
+    """
+    import os
+    if not os.path.isfile(dxf_path):
+        raise FileNotFoundError(f"DXF file not found: {dxf_path}")
+    try:
+        with open(dxf_path, 'r', encoding='utf-8') as f:
+            doc = read_dxf(f)
+        msp = doc.modelspace()
+        entities = [e for e in recursive_decompose(msp) if e.dxftype() in ELIGIBLE]
+        closed_ents = [e for e in entities if is_closed_entity(e)]
+        open_ents   = [e for e in entities if not is_closed_entity(e)]
+        items: List[DxfPolygon] = (
+            closed_entities_to_polys_with_src(closed_ents, spline_tol=tolerance) +
+            open_entities_to_polys_with_src(open_ents, flatten_tol=tolerance, snap_tol=tolerance)
+        )
+        items = keep_only_outer(items)
+        items = merge_touching(items)
+    except Exception as e:
+        raise RuntimeError(f"Failed to process DXF file: {e}")
+
+    result = []
+    for poly in items:
+        # Extract exterior coordinates as tuples
+        if hasattr(poly.polygon, 'exterior'):
+            vertices = [tuple(pt) for pt in poly.polygon.exterior.coords]
+        else:
+            vertices = []
+        result.append({
+            'vertices': vertices,
+            'entities': poly.entities
+        })
+    return result
