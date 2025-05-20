@@ -227,43 +227,7 @@ def plot_polygons(polys: List[DxfPolygon], title="DXF polygons"):
 # Main processing routine (strongly typed)                                    #
 # --------------------------------------------------------------------------- #
 
-def process(dxf_stream: TextIO, tol: float) -> List[DxfPolygon]:
-    """Read *dxf_stream* and extract outer polygons.
-
-    Parameters
-    ----------
-    dxf_stream : TextIO
-        File‑like object opened in text or binary mode pointing at a DXF file.
-    tol        : float
-        Sampling / snapping tolerance (model‑space units).
-
-    Returns
-    -------
-    list[DxfPolygon]
-        Outer, merged polygons with their source entities attached.
-    """
-    try:
-        doc = ezdxf.read(dxf_stream)
-    except ezdxf.DXFStructureError as e:
-        raise ValueError(f"Invalid DXF file: {e}") from e
-
-    msp = doc.modelspace()
-    entities = [e for e in recursive_decompose(msp) if e.dxftype() in ELIGIBLE]
-
-    closed_ents = [e for e in entities if is_closed_entity(e)]
-    open_ents   = [e for e in entities if not is_closed_entity(e)]
-
-    items: List[DxfPolygon] = (
-        closed_entities_to_polys_with_src(closed_ents, spline_tol=tol) +
-        open_entities_to_polys_with_src(open_ents, flatten_tol=tol, snap_tol=tol)
-    )
-
-    items = keep_only_outer(items)
-    items = merge_touching(items)
-
-    return items
-
-def find_closed_polygons(dxf_path: str, tolerance: float) -> List[Dict[str, Any]]:
+def find_closed_polygons(dxf_stream: TextIO, tolerance: float) -> List[DxfPolygon]:
     """
     Loads a DXF file, finds all closed polygons, and returns their vertices and all associated entities (used, within, touching, or intersecting).
 
@@ -276,24 +240,17 @@ def find_closed_polygons(dxf_path: str, tolerance: float) -> List[Dict[str, Any]
             - 'vertices': ordered list of 2D points (tuples)
             - 'entities': list of original DXF entity references (used, within, touching, or intersecting the polygon)
     """
-    import os
-    if not os.path.isfile(dxf_path):
-        raise FileNotFoundError(f"DXF file not found: {dxf_path}")
-    try:
-        with open(dxf_path, 'r', encoding='utf-8') as f:
-            doc = read_dxf(f)
-        msp = doc.modelspace()
-        entities = [e for e in recursive_decompose(msp) if e.dxftype() in ELIGIBLE]
-        closed_ents = [e for e in entities if is_closed_entity(e)]
-        open_ents   = [e for e in entities if not is_closed_entity(e)]
-        items: List[DxfPolygon] = (
-            closed_entities_to_polys_with_src(closed_ents, spline_tol=tolerance) +
-            open_entities_to_polys_with_src(open_ents, flatten_tol=tolerance, snap_tol=tolerance)
-        )
-        items = keep_only_outer(items)
-        items = merge_touching(items)
-    except Exception as e:
-        raise RuntimeError(f"Failed to process DXF file: {e}")
+    doc = read_dxf(dxf_stream)
+    msp = doc.modelspace()
+    entities = [e for e in recursive_decompose(msp) if e.dxftype() in ELIGIBLE]
+    closed_ents = [e for e in entities if is_closed_entity(e)]
+    open_ents   = [e for e in entities if not is_closed_entity(e)]
+    items: List[DxfPolygon] = (
+        closed_entities_to_polys_with_src(closed_ents, spline_tol=tolerance) +
+        open_entities_to_polys_with_src(open_ents, flatten_tol=tolerance, snap_tol=tolerance)
+    )
+    items = keep_only_outer(items)
+    items = merge_touching(items)
 
     # For each polygon, add all entities that are used, within, touching, or intersecting
     result = []

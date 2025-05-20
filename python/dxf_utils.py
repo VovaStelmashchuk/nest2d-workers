@@ -1,8 +1,8 @@
 import ezdxf
-
+from typing import TextIO
 from ezdxf.document import Drawing
 
-def read_dxf(dxf_stream) -> Drawing:
+def read_dxf(dxf_stream: TextIO) -> Drawing:
     """
     Reads a DXF stream and returns the modelspace without entities TEXT and MTEXT.
 

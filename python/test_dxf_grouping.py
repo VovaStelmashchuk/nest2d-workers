@@ -26,19 +26,20 @@ def main():
     except Exception as e:
         print(f"Error reading DXF file: {e}")
         return
-
-    try:
-        results = find_closed_polygons(args.dxf_path, args.tolerance)
-    except Exception as e:
-        print(f"Error: {e}")
-        return
+    
+    # file as textIo
+    with open(args.dxf_path, 'r', encoding='utf-8') as f:
+        try:
+            results = find_closed_polygons(f, args.tolerance)
+        except Exception as e:
+            print(f"Error: {e}")
+            return
 
     print(f"Found {len(results)} closed polygons.")
     for i, poly in enumerate(results):
         print(f"\nPolygon {i+1}:")
         print(f"  Vertices: {poly['vertices']}")
         print(f"  Handles: {[getattr(e, 'dxf', getattr(e, 'handle', str(e))).handle if hasattr(getattr(e, 'dxf', getattr(e, 'handle', e)), 'handle') else getattr(e, 'handle', str(e)) for e in poly['entities']]}")
-        print(f"  Contained handles: {poly.get('contained_handles', [])}")
         
     # Get all unique handles from both sources
     all_handles = set()
@@ -47,8 +48,6 @@ def main():
         for ent in poly['entities']:
             handle = getattr(ent, 'dxf', getattr(ent, 'handle', str(ent))).handle if hasattr(getattr(ent, 'dxf', getattr(ent, 'handle', ent)), 'handle') else getattr(ent, 'handle', str(ent))
             all_handles.add(handle)
-        # Add contained handles
-        all_handles.update(poly.get('contained_handles', []))
         
     # Get all handles from original DXF entities
     original_handles = {ent.dxf.handle for ent in entities}
