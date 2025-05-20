@@ -265,7 +265,7 @@ def process(dxf_stream: TextIO, tol: float) -> List[DxfPolygon]:
 
 def find_closed_polygons(dxf_path: str, tolerance: float) -> List[Dict[str, Any]]:
     """
-    Loads a DXF file, finds all closed polygons, and returns their vertices and source entities.
+    Loads a DXF file, finds all closed polygons, and returns their vertices and all associated entities (used, within, touching, or intersecting).
 
     Args:
         dxf_path (str): Path to the DXF file.
@@ -274,7 +274,7 @@ def find_closed_polygons(dxf_path: str, tolerance: float) -> List[Dict[str, Any]
     Returns:
         List[Dict]: Each dict contains:
             - 'vertices': ordered list of 2D points (tuples)
-            - 'entities': list of original DXF entity references
+            - 'entities': list of original DXF entity references (used, within, touching, or intersecting the polygon)
     """
     import os
     if not os.path.isfile(dxf_path):
@@ -295,15 +295,38 @@ def find_closed_polygons(dxf_path: str, tolerance: float) -> List[Dict[str, Any]
     except Exception as e:
         raise RuntimeError(f"Failed to process DXF file: {e}")
 
+    # For each polygon, add all entities that are used, within, touching, or intersecting
     result = []
     for poly in items:
-        # Extract exterior coordinates as tuples
         if hasattr(poly.polygon, 'exterior'):
             vertices = [tuple(pt) for pt in poly.polygon.exterior.coords]
         else:
             vertices = []
+        # Start with the entities used to create the polygon
+        polygon_entities = set(poly.entities)
+        for ent in entities:
+            try:
+                if ent in polygon_entities:
+                    continue
+                dxftype = ent.dxftype()
+                if dxftype in ("LWPOLYLINE", "POLYLINE"):
+                    pts = [tuple(p[:2]) for p in getattr(ent, 'get_points', lambda: getattr(ent, 'points', lambda: [])())()]
+                    geom = Polygon(pts) if len(pts) > 2 else (LineString(pts) if len(pts) > 1 else None)
+                elif dxftype in ("CIRCLE", "ARC", "ELLIPSE", "SPLINE"):
+                    primitive = make_primitive(ent, tolerance)
+                    pts = [(v.x, v.y) for v in primitive.path.flattening(tolerance)]
+                    geom = Polygon(pts) if len(pts) > 2 else None
+                elif dxftype == "LINE":
+                    pts = [(ent.dxf.start[0], ent.dxf.start[1]), (ent.dxf.end[0], ent.dxf.end[1])]
+                    geom = LineString(pts)
+                else:
+                    geom = None
+                if geom is not None and (poly.polygon.contains(geom) or poly.polygon.touches(geom) or poly.polygon.intersects(geom)):
+                    polygon_entities.add(ent)
+            except Exception:
+                continue
         result.append({
             'vertices': vertices,
-            'entities': poly.entities
+            'entities': list(polygon_entities)
         })
     return result
