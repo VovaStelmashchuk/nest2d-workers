@@ -7,8 +7,9 @@ from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, nestDxfBucket, nestSvgBucket
 from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest
 from svg_generator import create_svg_from_doc
-from polygone import DxfPolygon, process 
+from polygone import DxfPolygon 
 import traceback
+from polygone import find_closed_polygons
 
 collection = db["nesting_jobs"]
 users_collection = db["users"]
@@ -35,7 +36,7 @@ def doJob(nesting_job):
 
         binary_stream = userDxfBucket.open_download_stream_by_name(fileSlug)
         dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
-        dxf_polygones :List[DxfPolygon] = process(dxf_stream, tolerance)
+        dxf_polygones :List[DxfPolygon] = find_closed_polygons(dxf_stream, tolerance)
 
         for group in dxf_polygones:
             nest_polygones.append(NestPolygone(group, fileCount))

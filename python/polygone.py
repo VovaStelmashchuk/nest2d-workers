@@ -282,8 +282,10 @@ def find_closed_polygons(dxf_stream: TextIO, tolerance: float) -> List[DxfPolygo
                     polygon_entities.add(ent)
             except Exception:
                 continue
-        result.append({
-            'vertices': vertices,
-            'entities': list(polygon_entities)
-        })
+        result.append(
+            DxfPolygon(
+                polygon=poly.polygon,
+                entities=list(polygon_entities)
+            )
+        )
     return result
