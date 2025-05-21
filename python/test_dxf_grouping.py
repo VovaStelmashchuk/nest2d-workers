@@ -38,15 +38,15 @@ def main():
     print(f"Found {len(results)} closed polygons.")
     for i, poly in enumerate(results):
         print(f"\nPolygon {i+1}:")
-        print(f"  Vertices: {poly['vertices']}")
-        print(f"  Handles: {[getattr(e, 'dxf', getattr(e, 'handle', str(e))).handle if hasattr(getattr(e, 'dxf', getattr(e, 'handle', e)), 'handle') else getattr(e, 'handle', str(e)) for e in poly['entities']]}")
+        print(f"  Vertices: {poly.polygon}")
+        print(f"  Handles: {[e.dxf.handle for e in poly.entities]}")
         
     # Get all unique handles from both sources
     all_handles = set()
     for poly in results:
         # Add handles from entities
-        for ent in poly['entities']:
-            handle = getattr(ent, 'dxf', getattr(ent, 'handle', str(ent))).handle if hasattr(getattr(ent, 'dxf', getattr(ent, 'handle', ent)), 'handle') else getattr(ent, 'handle', str(ent))
+        for ent in poly.entities:
+            handle = ent.dxf.handle
             all_handles.add(handle)
         
     # Get all handles from original DXF entities
@@ -65,7 +65,7 @@ def main():
     # Plot all polygons
     plt.figure(figsize=(8, 8))
     for poly in results:
-        verts = poly['vertices']
+        verts = poly.polygon.exterior.coords
         if len(verts) > 1:
             xs, ys = zip(*verts)
             plt.plot(xs, ys, marker='o')
