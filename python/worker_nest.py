@@ -34,9 +34,8 @@ def doJob(nesting_job):
         fileSlug: str = file.get("slug")
         fileCount: int = file.get("count")
 
-        binary_stream = userDxfBucket.open_download_stream_by_name(fileSlug)
-        dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
-        dxf_polygones :List[DxfPolygon] = find_closed_polygons(dxf_stream, tolerance)
+        grid_out = userDxfBucket.open_download_stream_by_name(fileSlug)
+        dxf_polygones :List[DxfPolygon] = find_closed_polygons(grid_out, tolerance)
 
         for group in dxf_polygones:
             nest_polygones.append(NestPolygone(group, fileCount))

@@ -31,11 +31,8 @@ def doJobProject(project_doc):
             {"$set": {"dxf.$.processingStatus": "in-progress"}}
         )
         try:
-            binary_stream = userDxfBucket.open_download_stream_by_name(
-                fileSlug)
-
-            dxf_stream = io.TextIOWrapper(binary_stream, encoding="utf-8")
-            dxf_doc = read_dxf(dxf_stream)
+            dxf_doc = read_dxf(userDxfBucket.open_download_stream_by_name(
+                fileSlug))
 
             svg_content = create_svg_from_doc(dxf_doc)
 

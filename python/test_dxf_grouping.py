@@ -4,13 +4,17 @@ import ezdxf
 from polygone import find_closed_polygons
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, LineString
-
+from mongo import tmpBucket
 
 def main():
     parser = argparse.ArgumentParser(description="Find closed polygons in a DXF file.")
     parser.add_argument("dxf_path", type=str, help="Path to the DXF file.")
     parser.add_argument("--tolerance", type=float, default=0.01, help="Gap tolerance for edge joining (default: 0.01)")
     args = parser.parse_args()
+    
+    # upload dxf to tmp bucket
+    with open(args.dxf_path, 'rb') as f:
+        tmpBucket.upload_from_stream('test.dxf', f)
     
     try:
         with open(args.dxf_path, 'r', encoding='utf-8') as f:
@@ -27,10 +31,10 @@ def main():
         print(f"Error reading DXF file: {e}")
         return
     
-    # file as textIo
     with open(args.dxf_path, 'r', encoding='utf-8') as f:
         try:
-            results = find_closed_polygons(f, args.tolerance)
+            grid_out = tmpBucket.find_one({"filename": "test.dxf"})
+            results = find_closed_polygons(grid_out, args.tolerance)
         except Exception as e:
             print(f"Error: {e}")
             return

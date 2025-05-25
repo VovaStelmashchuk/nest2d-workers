@@ -19,13 +19,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Iterable, List, Sequence, Dict, TextIO, Any
+from typing import Iterable, List
 
-import ezdxf
 from ezdxf import read
 from ezdxf.disassemble import make_primitive, recursive_decompose
 from ezdxf.entities import DXFEntity
 from ezdxf.edgesmith import is_closed_entity
+from gridfs import GridOut
 from matplotlib import pyplot as plt
 from shapely.geometry import Polygon, LineString, MultiLineString, MultiPolygon
 from shapely.ops import unary_union, polygonize
@@ -227,7 +227,7 @@ def plot_polygons(polys: List[DxfPolygon], title="DXF polygons"):
 # Main processing routine (strongly typed)                                    #
 # --------------------------------------------------------------------------- #
 
-def find_closed_polygons(dxf_stream: TextIO, tolerance: float) -> List[DxfPolygon]:
+def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> List[DxfPolygon]:
     """
     Loads a DXF file, finds all closed polygons, and returns their vertices and all associated entities (used, within, touching, or intersecting).
 

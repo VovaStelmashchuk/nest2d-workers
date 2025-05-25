@@ -37,3 +37,5 @@ userSvgBucket = gridfs.GridFSBucket(db, bucket_name="userSvg")
 
 nestDxfBucket = gridfs.GridFSBucket(db, bucket_name="nestDxf")
 nestSvgBucket = gridfs.GridFSBucket(db, bucket_name="nestSvg")
+
+tmpBucket = gridfs.GridFSBucket(db, bucket_name="tmp")
