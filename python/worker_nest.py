@@ -53,7 +53,7 @@ def doJob(nesting_job):
     if (result.placedCount != result.requestCount):
         raise Exception("Not all items could be placed in the nesting job")
 
-    doc = ezdxf.new('R2010')
+    doc = ezdxf.new(dxfversion='R2010', units=4)
     msp = doc.modelspace()
     for entity in result.dxf_entities:
         msp.add_entity(entity)
