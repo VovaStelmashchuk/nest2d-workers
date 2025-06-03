@@ -106,7 +106,8 @@ def doJob(nesting_job):
         {
             "$inc": {
                 "nestingJobs": 1,
-                "nestingTimeInMinute": minutes_taken
+                "nestingTimeInMinute": minutes_taken,
+                "balance": -(minutes_taken + 1)
             }
         }
     )
