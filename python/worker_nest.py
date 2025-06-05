@@ -5,7 +5,7 @@ import ezdxf
 from typing import List
 from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, nestDxfBucket, nestSvgBucket
-from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest
+from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest, NestResultLayout
 from svg_generator import create_svg_from_doc
 from polygone import DxfPolygon 
 import traceback
@@ -13,6 +13,29 @@ from polygone import find_closed_polygons
 
 collection = db["nesting_jobs"]
 users_collection = db["users"]
+
+def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name: str, ownerId: str):
+    doc = ezdxf.new(dxfversion='R2010', units=4)
+    msp = doc.modelspace()
+    for entity in nest_layout.dxf_entities:
+        msp.add_entity(entity)
+
+    text_stream = io.StringIO()
+    doc.write(text_stream)
+    dxf_text = text_stream.getvalue()
+    text_stream.close()
+
+    dxf_bytes = dxf_text.encode('utf-8')
+
+    nestDxfBucket.upload_from_stream(filename=dxf_file_name, source=dxf_bytes, metadata={"ownerId": ownerId})
+
+    svg_content = create_svg_from_doc(doc)
+
+    nestSvgBucket.upload_from_stream(
+        filename=svg_file_name,
+        source=io.BytesIO(svg_content.encode("utf-8")),
+        metadata={"ownerId": ownerId}
+    )
 
 def doJob(nesting_job):
     slug = nesting_job.get("slug")
@@ -22,6 +45,7 @@ def doJob(nesting_job):
     height = params.get("height")
     tolerance = params.get("tolerance")
     space = params.get("space")
+    sheet_count = params.get("sheetCount")
 
     start_at = datetime.datetime.now()
     collection.update_one(
@@ -41,48 +65,29 @@ def doJob(nesting_job):
             nest_polygones.append(NestPolygone(group, fileCount))
 
     result: NestResult = nest(NestRequest(
-        nest_polygones, width, height, space, tolerance
+        nest_polygones, width, height, space, tolerance, sheet_count
     ))
-
+   
     collection.update_one(
         {"_id": nesting_job["_id"]},
-        {"$set": {"usage": result.usage, "requested": result.requestCount,
-                  "placed": result.placedCount}}
+        {"$set": { "requested": result.requestCount, "placed": result.placedCount }}
     )
 
     if (result.placedCount != result.requestCount):
         raise Exception("Not all items could be placed in the nesting job")
-
-    doc = ezdxf.new(dxfversion='R2010', units=4)
-    msp = doc.modelspace()
-    for entity in result.dxf_entities:
-        msp.add_entity(entity)
-
-    text_stream = io.StringIO()
-    doc.write(text_stream)
-    dxf_text = text_stream.getvalue()
-    text_stream.close()
-
-    dxf_bytes = dxf_text.encode('utf-8')
-
-    dxf_file_name = f"{slug}.dxf"
-    nestDxfBucket.upload_from_stream(dxf_file_name, dxf_bytes)
-
+    
+    dxf_files = []
+    svg_files = []
+    for index, layout in enumerate(result.layouts):
+        dxf_file_name = f"{slug}_part_{index + 1}.dxf"
+        svg_file_name = f"{slug}_part_{index + 1}.svg"
+        buildLayout(layout, dxf_file_name, svg_file_name, nesting_job.get("ownerId"))
+        dxf_files.append(dxf_file_name)
+        svg_files.append(svg_file_name)
+        
     collection.update_one(
         {"_id": nesting_job["_id"]},
-        {"$set": {"dxf_file": dxf_file_name}}
-    )
-
-    svg_content = create_svg_from_doc(doc)
-
-    svg_file_name = f"{slug}.svg"
-    nestSvgBucket.upload_from_stream(
-        svg_file_name,
-        io.BytesIO(svg_content.encode("utf-8"))
-    )
-    collection.update_one(
-        {"_id": nesting_job["_id"]},
-        {"$set": {"svg_file": svg_file_name}}
+        {"$set": {"dxf_files": dxf_files, "svg_files": svg_files, "layoutCount": len(result.layouts), "status": "done" }}
     )
 
     finishAt = datetime.datetime.now()
@@ -94,7 +99,6 @@ def doJob(nesting_job):
         {"_id": nesting_job["_id"]},
         {
             "$set": {
-                "status": "done", 
                 "finishedAt": finishAt, 
                 "timeTaken": minutes_taken
             }

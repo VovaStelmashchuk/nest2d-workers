@@ -16,23 +16,26 @@ class NestPolygone:
 
 
 class NestRequest:
-    def __init__(self, files: list[NestPolygone], width: float, height: float, spacing: float, tolerance: float):
+    def __init__(self, files: list[NestPolygone], width: float, height: float, spacing: float, tolerance: float, sheet_count: int):
         self.items: list[NestPolygone] = files
         self.width = width
         self.height = height
         self.spacing = spacing
         self.tolerance = tolerance 
+        self.sheet_count = sheet_count
 
-
-class NestResult:
-    def __init__(self, usage: float, requestCount: int, placedCount: int, dxf_entities: list[DXFGraphic] = []):
-        self.usage = usage
-        self.requestCount = requestCount
-        self.placedCount = placedCount
+class NestResultLayout:
+    def __init__(self, dxf_entities: list[DXFGraphic] = []):
         self.dxf_entities = dxf_entities
 
+class NestResult:
+    def __init__(self, requestCount: int, placedCount: int, layouts: list[NestResultLayout] = []):
+        self.requestCount = requestCount
+        self.placedCount = placedCount
+        self.layouts = layouts
+
     def __str__(self) -> str:
-        return f"NestResult -> Usage: {self.usage}, RequestCount: {self.requestCount}, PlacedCount: {self.placedCount}"
+        return f"NestResult -> RequestCount: {self.requestCount}, PlacedCount: {self.placedCount}, Layouts count: {len(self.layouts)}"
 
 
 class Transform:
@@ -67,27 +70,36 @@ def nest(nest_request: NestRequest) -> NestResult:
     except json.JSONDecodeError as e:
         print("Error decoding JSON result:", e)
         raise e
+    
+    layouts = solution.get("Layouts")
+    
+    totalPlacedItems = 0
+    
+    for layout in layouts:
+        placedItems = layout.get("PlacedItems")
+        totalPlacedItems += len(placedItems)
+        
+    if (totalPlacedItems != totalRequest):
+        return NestResult(totalRequest, totalPlacedItems, [])
 
-    firstLayout = solution.get("Layouts")[0]
-    usage = firstLayout.get("Statistics").get("Usage")
-    placedItems = firstLayout.get("PlacedItems")
-    totalPlacedItems = len(placedItems)
-
-    transforms = []
-    for item in placedItems:
-        index = item.get("Index")
-        transformation = item.get("Transformation")
-        rotation = transformation.get("Rotation")
-        translation = transformation.get("Translation")
-        x = translation[0]
-        y = translation[1]
-        transforms.append(Transform(index, x, y, rotation))
-
-    dxf_entities = []
-    if totalPlacedItems == totalRequest:
+    nest_result_layouts = []
+    
+    for layout in layouts:
+        transforms = []
+        placedItems = layout.get("PlacedItems")
+        for item in placedItems:
+            index = item.get("Index")
+            transformation = item.get("Transformation")
+            rotation = transformation.get("Rotation")
+            translation = transformation.get("Translation")
+            x = translation[0]
+            y = translation[1]
+            transforms.append(Transform(index, x, y, rotation))
+        
         dxf_entities = buildResultDxf(nest_request, transforms)
+        nest_result_layouts.append(NestResultLayout(dxf_entities))
 
-    return NestResult(usage, totalRequest, totalPlacedItems, dxf_entities)
+    return NestResult(totalRequest, totalPlacedItems, nest_result_layouts)
 
 
 def buildResultDxf(nestRequest: NestRequest, transforms) -> list[DXFGraphic]:
@@ -123,7 +135,7 @@ def buildNestRequestObject(nestRequest: NestRequest):
             "Objects": [
                 {
                     "Cost": 1,
-                    "Stock": 1,
+                    "Stock": nestRequest.sheet_count,
                     "Zones": [],
                     "Shape": {
                         "Type": "Polygon",
