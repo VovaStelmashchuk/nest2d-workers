@@ -164,7 +164,7 @@ def buildNestRequestObject(nestRequest: NestRequest):
                     "n_ff_piers": 0
                 }
             },
-            "poly_simpl_tolerance": nestRequest.tolerance / 10,
+            "poly_simpl_tolerance": nestRequest.tolerance * 2,
             "prng_seed": 0,
             "n_samples": 500000,
             "ls_frac": 0.2
