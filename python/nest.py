@@ -164,7 +164,7 @@ def buildNestRequestObject(nestRequest: NestRequest):
                     "n_ff_piers": 0
                 }
             },
-            "poly_simpl_tolerance": nestRequest.tolerance * 2,
+            "poly_simpl_tolerance": nestRequest.tolerance,
             "prng_seed": 0,
             "n_samples": 500000,
             "ls_frac": 0.2
@@ -191,10 +191,18 @@ def convertPolygoneGroupToJaguarRequest(grop: DxfPolygon, count: int, spacing: f
 
     xs, ys = poly.exterior.xy
     points: list[list[float]] = []
-    # add poinst but skip if previus point is the same , based on tolerance
+    
+    prev_point = [xs[0], ys[0]]
+    points.append(prev_point)
+    
     for i in range(len(xs)):
-        if i > 0 and abs(xs[i] - xs[i - 1]) < tolerance and abs(ys[i] - ys[i - 1]) < tolerance:
+        # check in new paint avay from previus point by tolerance
+        dx = xs[i] - prev_point[0]
+        dy = ys[i] - prev_point[1]
+        distance = (dx * dx + dy * dy)
+        if distance < (tolerance * tolerance) * 2:
             continue
+        prev_point = [xs[i], ys[i]]
         points.append([xs[i], ys[i]])
         
     if len(points) < 3:
