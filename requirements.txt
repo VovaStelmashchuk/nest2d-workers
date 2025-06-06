@@ -17,4 +17,4 @@ six==1.17.0
 typing-extensions==4.12.2
 zipp==3.21.0
 requests==2.31.0
-
+pyo3-runtime>=0.0.1

@@ -137,13 +137,6 @@ while True:
         print("Worker nesting job found", nesting_job.get(
             "slug"), "at", datetime.datetime.now())
         doJob(nesting_job)
-    except pyo3_runtime.PanicException as e:
-        print("Error: ", e)
-        print(traceback.format_exc())
-        collection.update_one(
-            {"_id": nesting_job["_id"]},
-            {"$set": {"status": "error", "error": str(e)}}
-        )
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
