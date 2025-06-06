@@ -196,6 +196,9 @@ def convertPolygoneGroupToJaguarRequest(grop: DxfPolygon, count: int, spacing: f
         if i > 0 and abs(xs[i] - xs[i - 1]) < tolerance and abs(ys[i] - ys[i - 1]) < tolerance:
             continue
         points.append([xs[i], ys[i]])
+        
+    if len(points) < 3:
+        raise Exception(f"Invalid polygon, less than 3 points, {points}")
     
     items.append({
         "Demand": count,
