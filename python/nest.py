@@ -200,7 +200,7 @@ def convertPolygoneGroupToJaguarRequest(grop: DxfPolygon, count: int, spacing: f
         dx = xs[i] - prev_point[0]
         dy = ys[i] - prev_point[1]
         distance = (dx * dx + dy * dy)
-        if distance < (tolerance * tolerance) * 2:
+        if distance < (tolerance * tolerance * 2):
             continue
         prev_point = [xs[i], ys[i]]
         points.append([xs[i], ys[i]])
