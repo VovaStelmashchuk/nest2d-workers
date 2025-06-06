@@ -60,6 +60,9 @@ def nest(nest_request: NestRequest) -> NestResult:
 
     try:
         result_json = nest_rust.run_nest(nest_request_json)
+    except pyo3_runtime.PanicException as e:
+        print("Error executing Rust code:", e)
+        raise e
     except Exception as e:
         print("Error executing Rust code:", e)
         raise e
