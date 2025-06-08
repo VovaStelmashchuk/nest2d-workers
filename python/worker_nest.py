@@ -10,9 +10,11 @@ from svg_generator import create_svg_from_doc
 from polygone import DxfPolygon 
 import traceback
 from polygone import find_closed_polygons
+from utils.logger import setup_json_logger
 
 collection = db["nesting_jobs"]
 users_collection = db["users"]
+logger = setup_json_logger("worker_nest")
 
 def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name: str, ownerId: str):
     doc = ezdxf.new(dxfversion='R2010', units=4)
@@ -118,11 +120,11 @@ def doJob(nesting_job):
 
 
 # Run the worker
-print("Worker nestincg started at ", datetime.datetime.now())
+logger.info("Worker nestincg started", extra={"event": "start", "time": str(datetime.datetime.now())})
 
 
 while True:
-    print("Worker nesitng try to find a pending job")
+    logger.info("Worker nesting try to find a pending job")
 
     nesting_job = collection.find_one_and_update(
         {"status": "pending"},
@@ -134,12 +136,10 @@ while True:
         time.sleep(5)
         continue
     try:
-        print("Worker nesting job found", nesting_job.get(
-            "slug"), "at", datetime.datetime.now())
+        logger.info("Worker nesting job found", extra={"slug": nesting_job.get("slug"), "time": str(datetime.datetime.now())})
         doJob(nesting_job)
     except Exception as e:
-        print("Error: ", e)
-        print(traceback.format_exc())
+        logger.error("Error in nesting job", extra={"error": str(e), "traceback": traceback.format_exc()})
         collection.update_one(
             {"_id": nesting_job["_id"]},
             {"$set": {"status": "error", "error": str(e)}}

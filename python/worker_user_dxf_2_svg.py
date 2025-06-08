@@ -6,14 +6,17 @@ import time
 import datetime
 from dxf_utils import read_dxf
 import traceback
+from utils.logger import setup_json_logger
 
-print("Worker dxf to svg started at ", datetime.datetime.now())
+logger = setup_json_logger("worker_user_dxf_2_svg")
+
+logger.info("Worker dxf to svg started", extra={"event": "start", "time": str(datetime.datetime.now())})
 
 collection = db["projects"]
 
 
 def doJobProject(project_doc):
-    print("Processing project: ", project_doc["_id"])
+    logger.info("Processing project", extra={"project_id": str(project_doc["_id"])})
     _id = project_doc["_id"]
     dxfArray = project_doc["dxf"]
 
@@ -21,7 +24,7 @@ def doJobProject(project_doc):
         fileSlug = dxf["slug"]
         processingStatus = dxf.get("processingStatus", "default")
 
-        print("Processing dxf to svg for file: ", fileSlug, dxf)
+        logger.info("Processing dxf to svg for file", extra={"fileSlug": fileSlug, "dxf": dxf})
 
         if processingStatus == "done":
             continue
@@ -52,8 +55,7 @@ def doJobProject(project_doc):
                  }
             )
         except Exception as e:
-            print("Error: ", e)
-            print(traceback.format_exc())
+            logger.error("Error in dxf to svg", extra={"error": str(e), "traceback": traceback.format_exc()})
             collection.update_one(
                 {"_id": _id, "dxf.slug": fileSlug},
                 {"$set": {"dxf.$.processingStatus": "error",
@@ -68,7 +70,7 @@ def doJobProject(project_doc):
 
 # Run the worker loop
 while True:
-    print("Worker dxf to svg try to find a pending job")
+    logger.info("Worker dxf to svg try to find a pending job")
     doc = collection.find_one_and_update(
         {"svgGeneratorStatus": "pending"},
         {"$set": {"svgGeneratorStatus": "processing"}},
@@ -82,7 +84,7 @@ while True:
     try:
         doJobProject(doc)
     except Exception as e:
-        print("Error: ", e)
+        logger.error("Error in project processing", extra={"error": str(e), "traceback": traceback.format_exc()})
         collection.update_one(
             {"_id": doc["_id"]},
             {"$set": {"svgGeneratorStatus": "error",
