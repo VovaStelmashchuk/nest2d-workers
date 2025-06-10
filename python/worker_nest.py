@@ -16,11 +16,16 @@ collection = db["nesting_jobs"]
 users_collection = db["users"]
 logger = setup_json_logger("worker_nest")
 
-def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name: str, ownerId: str):
+def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name: str, ownerId: str, layers_info: dict):
     doc = ezdxf.new(dxfversion='R2010', units=4)
     msp = doc.modelspace()
+    for layer_name, layer_info in layers_info.items():
+        layer = doc.layers.add(layer_name)
+        layer.dxf.color = layer_info['color']
+
     for entity in nest_layout.dxf_entities:
         msp.add_entity(entity)
+        entity.dxf.layer = layer_name
 
     text_stream = io.StringIO()
     doc.write(text_stream)
@@ -39,6 +44,8 @@ def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name
         metadata={"ownerId": ownerId}
     )
 
+from typing import Tuple
+
 def doJob(nesting_job):
     slug = nesting_job.get("slug")
     files = nesting_job.get("files")
@@ -56,12 +63,16 @@ def doJob(nesting_job):
     )
 
     nest_polygones = []
+    layers_info = {}
     for file in files:
         fileSlug: str = file.get("slug")
         fileCount: int = file.get("count")
 
         grid_out = userDxfBucket.open_download_stream_by_name(fileSlug)
-        dxf_polygones :List[DxfPolygon] = find_closed_polygons(grid_out, tolerance)
+        dxf_polygones: List[DxfPolygon]
+        layers_info_file: dict
+        dxf_polygones, layers_info_file = find_closed_polygons(grid_out, tolerance)
+        layers_info[fileSlug] = layers_info_file
 
         for group in dxf_polygones:
             nest_polygones.append(NestPolygone(group, fileCount))
@@ -83,7 +94,7 @@ def doJob(nesting_job):
     for index, layout in enumerate(result.layouts):
         dxf_file_name = f"{slug}_part_{index + 1}.dxf"
         svg_file_name = f"{slug}_part_{index + 1}.svg"
-        buildLayout(layout, dxf_file_name, svg_file_name, nesting_job.get("ownerId"))
+        buildLayout(layout, dxf_file_name, svg_file_name, nesting_job.get("ownerId"), layers_info)
         dxf_files.append(dxf_file_name)
         svg_files.append(svg_file_name)
         

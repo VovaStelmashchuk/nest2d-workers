@@ -34,7 +34,7 @@ def main():
     with open(args.dxf_path, 'r', encoding='utf-8') as f:
         try:
             grid_out = tmpBucket.find_one({"filename": "test.dxf"})
-            results = find_closed_polygons(grid_out, args.tolerance)
+            results, layers_info = find_closed_polygons(grid_out, args.tolerance)
         except Exception as e:
             print(f"Error: {e}")
             return
