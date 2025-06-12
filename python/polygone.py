@@ -229,7 +229,7 @@ def plot_polygons(polys: List[DxfPolygon], title="DXF polygons"):
 
 from typing import Tuple
 
-def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> Tuple[List[DxfPolygon], dict]:
+def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> List[DxfPolygon]:
     """
     Loads a DXF file, finds all closed polygons, and returns their vertices and all associated entities (used, within, touching, or intersecting).
 
@@ -254,6 +254,13 @@ def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> Tuple[List[Dx
         }
     
     entities = [e for e in recursive_decompose(msp) if e.dxftype() in ELIGIBLE]
+    # Attach color to each entity based on its layer
+    for entity in entities:
+        if hasattr(entity, 'dxf') and hasattr(entity.dxf, 'layer'):
+            layer_name = entity.dxf.layer
+            if layer_name in layers_info:
+                entity.dxf.color = layers_info[layer_name]['color']
+                
     closed_ents = [e for e in entities if is_closed_entity(e)]
     open_ents   = [e for e in entities if not is_closed_entity(e)]
     items: List[DxfPolygon] = (
@@ -299,4 +306,4 @@ def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> Tuple[List[Dx
                 entities=list(polygon_entities)
             )
         )
-    return result, layers_info
+    return result

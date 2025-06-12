@@ -16,16 +16,32 @@ collection = db["nesting_jobs"]
 users_collection = db["users"]
 logger = setup_json_logger("worker_nest")
 
-def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name: str, ownerId: str, layers_info: dict):
+def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name: str, ownerId: str):
     doc = ezdxf.new(dxfversion='R2010', units=4)
     msp = doc.modelspace()
-    for layer_name, layer_info in layers_info.items():
-        layer = doc.layers.add(layer_name)
-        layer.dxf.color = layer_info['color']
+    
+    # Get all unique colors from entities
+    colors = set()
+    for entity in nest_layout.dxf_entities:
+        if hasattr(entity, 'dxf') and hasattr(entity.dxf, 'color'):
+            colors.add(entity.dxf.color)
+    
+    # Create layers for each color and add them to the document
+    for color in colors:
+        layer_name = f"Color_{color}"
+        if layer_name not in doc.layers:
+            layer = doc.layers.add(name=layer_name)
+            layer.color = color
+    
+    # Attach entities to their corresponding color layers
+    for entity in nest_layout.dxf_entities:
+        if hasattr(entity, 'dxf') and hasattr(entity.dxf, 'color'):
+            color = entity.dxf.color
+            layer_name = f"Color_{color}"
+            entity.dxf.layer = layer_name
 
     for entity in nest_layout.dxf_entities:
         msp.add_entity(entity)
-        entity.dxf.layer = layer_name
 
     text_stream = io.StringIO()
     doc.write(text_stream)
@@ -63,16 +79,13 @@ def doJob(nesting_job):
     )
 
     nest_polygones = []
-    layers_info = {}
     for file in files:
         fileSlug: str = file.get("slug")
         fileCount: int = file.get("count")
 
         grid_out = userDxfBucket.open_download_stream_by_name(fileSlug)
         dxf_polygones: List[DxfPolygon]
-        layers_info_file: dict
-        dxf_polygones, layers_info_file = find_closed_polygons(grid_out, tolerance)
-        layers_info[fileSlug] = layers_info_file
+        dxf_polygones = find_closed_polygons(grid_out, tolerance)
 
         for group in dxf_polygones:
             nest_polygones.append(NestPolygone(group, fileCount))
@@ -94,7 +107,7 @@ def doJob(nesting_job):
     for index, layout in enumerate(result.layouts):
         dxf_file_name = f"{slug}_part_{index + 1}.dxf"
         svg_file_name = f"{slug}_part_{index + 1}.svg"
-        buildLayout(layout, dxf_file_name, svg_file_name, nesting_job.get("ownerId"), layers_info)
+        buildLayout(layout, dxf_file_name, svg_file_name, nesting_job.get("ownerId"))
         dxf_files.append(dxf_file_name)
         svg_files.append(svg_file_name)
         
