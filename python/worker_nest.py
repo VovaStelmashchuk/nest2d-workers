@@ -98,6 +98,9 @@ def doJob(nesting_job):
         {"_id": nesting_job["_id"]},
         {"$set": { "requested": result.requestCount, "placed": result.placedCount }}
     )
+    
+    if (result.placedCount == 0 or result.requestCount == 0):
+        raise Exception("Placed count and request count must be greater than 0")
 
     if (result.placedCount != result.requestCount):
         raise Exception("Not all items could be placed in the nesting job")
