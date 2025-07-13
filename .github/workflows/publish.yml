@@ -54,6 +54,7 @@ jobs:
     strategy:
       matrix:
         environment: [prod, dev]
+    environment: ${{ matrix.environment }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
