@@ -1,0 +1,27 @@
+from polygonizer.dxf import polygon_parts_from_dxf
+from polygonizer.dto import ClosedPolygon
+from polygonizer.core import combine_polygon_parts
+from utils.logger import setup_json_logger
+
+from typing import List
+from ezdxf.document import Drawing
+
+logger = setup_json_logger("dxf_polygonizer")
+
+def close_polygon_from_dxf(doc: Drawing, tolerance: float) -> List[ClosedPolygon]:
+    logger.info("extract polygon parts")
+    polygon_parts = polygon_parts_from_dxf(doc, tolerance)
+    
+    valid_parts = [part for part in polygon_parts if part.is_valid(tolerance)]
+    print("valid_parts length:", len(valid_parts))
+    
+    closed_parts = [part for part in valid_parts if part.is_closed(tolerance)]
+    open_parts = [part for part in valid_parts if not part.is_closed(tolerance)]
+    
+    # logger.info("closed polygons", extra={"closed_polygons": closed_parts})
+    # logger.info("open polygons", extra={"open_polygons": open_parts})
+    
+    print("closed_parts length:", len(closed_parts))
+    print("open_parts length:", len(open_parts))
+    
+    return []
