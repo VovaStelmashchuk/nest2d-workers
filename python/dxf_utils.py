@@ -27,3 +27,15 @@ def read_dxf(dxf_stream: GridOut) -> Drawing:
         msp.delete_entity(entity)
 
     return doc
+
+def read_dxf_file(dxf_path: str) -> Drawing:
+    doc = ezdxf.readfile(dxf_path)
+    msp = doc.modelspace()
+
+    text_entities = [entity for entity in msp if entity.dxftype()
+                     in ("TEXT", "MTEXT")]
+
+    for entity in text_entities:
+        msp.delete_entity(entity)
+
+    return doc

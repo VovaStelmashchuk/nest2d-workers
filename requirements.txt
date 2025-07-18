@@ -6,7 +6,6 @@ fonttools==4.56.0
 importlib-resources==6.5.2
 kiwisolver==1.4.7
 matplotlib==3.9.4
-numpy==2.0.2
 packaging==24.2
 pillow==11.1.0
 pymongo==4.11.1
@@ -19,3 +18,6 @@ zipp==3.21.0
 requests==2.31.0
 pyo3-runtime>=0.0.1
 python-json-logger==3.3.0
+numpy==2.2.6
+scipy==1.15.0
+pytest==8.4.1

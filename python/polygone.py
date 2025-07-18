@@ -252,14 +252,18 @@ def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> List[DxfPolyg
             'name': layer.dxf.name,
             'color': layer.dxf.color,
         }
-    
+        
     entities = [e for e in recursive_decompose(msp) if e.dxftype() in ELIGIBLE]
+    color_map = Tuple[str, int]
+    
     # Attach color to each entity based on its layer
     for entity in entities:
         if hasattr(entity, 'dxf') and hasattr(entity.dxf, 'layer'):
             layer_name = entity.dxf.layer
             if layer_name in layers_info:
-                entity.dxf.color = layers_info[layer_name]['color']
+                color = layers_info[layer_name]['color']
+                entity.dxf.color = color 
+                color_map[entity.dxf.handle] = color 
                 
     closed_ents = [e for e in entities if is_closed_entity(e)]
     open_ents   = [e for e in entities if not is_closed_entity(e)]
