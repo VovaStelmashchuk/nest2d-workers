@@ -23,22 +23,3 @@ class TestCombineOpenWithClose:
         assert len(open_result) == 0
         assert len(closed_result) == 1
         assert set(closed_result[0].handles) == {"closed1", "open1"}
-
-    def test_open_line_outside_closed_polygon_remains(self):
-        """Test that an open line outside a closed polygon remains as an open part."""
-        closed_part = ClosedPolygon(
-            points=[Point(0, 0), Point(1, 0), Point(1, 1), Point(0, 1), Point(0, 0)],
-            handles=["closed1"]
-        )
-        open_part = PolygonPart(
-            points=[Point(2, 2), Point(3, 3)],
-            handles=["open1"]
-        )
-
-        open_result, closed_result = combine_polygon_parts([open_part], [closed_part], 0.1)
-
-        # The open part is outside the closed polygon, so it should remain as open
-        assert len(open_result) == 1
-        assert open_result[0] == open_part
-        assert len(closed_result) == 1
-        assert closed_result[0] == closed_part

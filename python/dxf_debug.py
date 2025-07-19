@@ -16,23 +16,25 @@ if __name__ == "__main__":
     doc = read_dxf_file(args.dxf)
 
     result = close_polygon_from_dxf(doc, args.tol)
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump([{"points": poly.points, "handles": poly.handles} for poly in result], f, indent=2)
-    print(f"Found {len(result)} polygons  ➜  {args.out}")
+    print(f"Found {len(result)} polygons")
     
     import matplotlib.pyplot as plt
     import numpy as np
+    
+    # Plot the polygons in result
+    fig, ax = plt.subplots()
+    for poly in result:
+        xs = [p.x for p in poly.points]
+        ys = [p.y for p in poly.points]
+        ax.plot(xs, ys, marker='o')
+        if hasattr(poly, "handles") and poly.handles:
+            centroid_x = np.mean(xs)
+            centroid_y = np.mean(ys)
+            ax.text(centroid_x, centroid_y, ",".join(str(h) for h in poly.handles), fontsize=8)
 
-    if result:
-        fig, ax = plt.subplots(figsize=(8, 8))
-        colors = plt.colormaps["tab20"].resampled(len(result))
-        for i, poly in enumerate(result):
-            pts = np.array(poly.points)
-            ax.fill(pts[:, 0], pts[:, 1], color=colors(i), alpha=0.5, label=f"Polygon {i+1}")
-            ax.plot(pts[:, 0], pts[:, 1], color=colors(i), lw=1.5)
-        ax.set_aspect("equal")
-        ax.set_title(f"Polygons from {args.dxf}")
-        ax.legend(loc="best", fontsize="small", ncol=2)
-        plt.savefig("output.png")
-    else:
-        print("No polygons found to plot.")
+    ax.set_aspect('equal')
+    ax.set_title("Closed Polygons")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.show()
+

@@ -173,23 +173,14 @@ def combine_polygon_parts(
     closed_parts = _combine_nested_polygons(closed_parts, tol)
     closed_parts = _combine_intersecting_polygons(closed_parts, tol)
     
-    if not open_parts:
+    if not open_parts or len(open_parts) == 0:
         return [], closed_parts
 
-    remaining_open_parts = []
-    
-    # Check each open part for containment
     for open_part in open_parts:
-        is_contained = False
         for closed_part in closed_parts:
             if is_open_part_inside_closed_part(open_part, closed_part):
-                # Use extend to merge the lists of handles
                 closed_part.handles.extend(open_part.handles)
-                is_contained = True
-                break
-        
-        if not is_contained:
-            remaining_open_parts.append(open_part)
-            
-    # Always return the final state of both lists
-    return remaining_open_parts, closed_parts
+                open_parts.remove(open_part)
+                return combine_polygon_parts(open_parts, closed_parts, tol)
+    
+    raise ValueError("Open parts are not inside any closed parts")

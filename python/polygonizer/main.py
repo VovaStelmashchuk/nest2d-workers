@@ -12,7 +12,7 @@ def close_polygon_from_dxf(doc: Drawing, tolerance: float) -> List[ClosedPolygon
     logger.info("extract polygon parts")
     polygon_parts = polygon_parts_from_dxf(doc, tolerance)
     
-    valid_parts = [part for part in polygon_parts if part.is_valid(tolerance)]
+    valid_parts = [part for part in polygon_parts if part.is_valid()]
     print("valid_parts length:", len(valid_parts))
     
     closed_parts = [part for part in valid_parts if part.is_closed(tolerance)]
@@ -24,4 +24,4 @@ def close_polygon_from_dxf(doc: Drawing, tolerance: float) -> List[ClosedPolygon
     print("closed_parts length:", len(closed_parts))
     print("open_parts length:", len(open_parts))
     
-    return []
+    return closed_parts
