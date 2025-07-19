@@ -75,9 +75,9 @@ class TestCombineNestedPolygons:
             points=[Point(0, 0), Point(2, 0), Point(2, 2), Point(0, 2), Point(0, 0)],
             handles=["parent_handle"]
         )
-        # Child square touching parent boundary
+        # Child square mostly inside parent but extending slightly outside
         child = ClosedPolygon(
-            points=[Point(1, 1), Point(2, 1), Point(2, 2), Point(1, 2), Point(1, 1)],
+            points=[Point(0.1, 0.1), Point(2.1, 0.1), Point(2.1, 1.9), Point(0.1, 1.9), Point(0.1, 0.1)],
             handles=["child_handle"]
         )
         
@@ -190,7 +190,55 @@ class TestCombineNestedPolygons:
         
         assert len(result) == 1
         assert set(result[0].handles) == {"parent", "child"}
-
-
+    
+    def test_completely_nested_child_polygon(self):
+        """Test that a child polygon completely inside the parent is correctly combined"""
+        # Parent square
+        parent = ClosedPolygon(
+            points=[Point(0, 0), Point(2, 0), Point(2, 2), Point(0, 2), Point(0, 0)],
+            handles=["parent_handle"]
+        )
+        # Child square completely inside parent
+        child = ClosedPolygon(
+            points=[Point(1, 1), Point(2, 1), Point(2, 2), Point(1, 2), Point(1, 1)],
+            handles=["child_handle"]
+        )
+        
+        result = _combine_nested_polygons([parent, child], 0.1)
+        
+        assert len(result) == 1
+        assert result[0] == parent
+        assert set(result[0].handles) == {"parent_handle", "child_handle"}
+        
+    def test_pologones_near_zero(self):
+        parent = ClosedPolygon(
+            points=[Point(0, 0), Point(1, 0), Point(1, 1), Point(0, 1), Point(0, 0)],
+            handles=["parent_handle"]
+        )
+        child = ClosedPolygon(
+            points=[Point(0.5, 0.5), Point(1.0, 0.5), Point(1.0, 1.0), Point(0.5, 1.0), Point(0.5, 0.5)],
+            handles=["child_handle"]
+        )
+        
+        result = _combine_nested_polygons([parent, child], 0.1)
+        
+        assert len(result) == 1
+        assert result[0] == parent
+        
+    def test_child_parent_low_tolerance(self):
+        parent = ClosedPolygon(
+            points=[Point(0.00001, 0.00001), Point(2, 0.00001), Point(1, 1), Point(0.00001, 1), Point(0.00001, 0.00001)],
+            handles=["parent_handle"]
+        )
+        child = ClosedPolygon(
+            points=[Point(0.00001, 0.00001), Point(1, 0.00001), Point(1, 1), Point(0.00001, 1), Point(0.00001, 0.00001)],
+            handles=["child_handle"]
+        )
+        
+        result = _combine_nested_polygons([parent, child], 0.00001)
+        
+        assert len(result) == 1
+        assert result[0] == parent
+        
 if __name__ == "__main__":
     pytest.main([__file__, "-v"]) 
