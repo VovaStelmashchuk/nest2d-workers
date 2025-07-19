@@ -1,4 +1,6 @@
 from operator import contains
+
+import shapely
 from polygonizer.dto import PolygonPart, ClosedPolygon, Point
 from shapely.geometry import Polygon
 
@@ -144,6 +146,18 @@ def _combine_intersecting_polygons(polys: list[ClosedPolygon], tol: float) -> li
             
     return polys
 
+def is_open_part_inside_closed_part(open_part: PolygonPart, closed_part: ClosedPolygon) -> bool:
+    """
+    Return True if the open part is inside the closed part, False otherwise.
+    """
+    points = open_part.points
+    shapely_closed_part = Polygon([(p.x, p.y) for p in closed_part.points])
+    
+    for i in range(len(points)):
+        if not shapely_closed_part.contains(shapely.Point(points[i].x, points[i].y)):
+            return False
+    return True
+
 def combine_polygon_parts(
     open_parts: list[PolygonPart], 
     closed_parts: list[ClosedPolygon], 
@@ -152,13 +166,30 @@ def combine_polygon_parts(
     """
     Returns a tuple of (list of open polygons, list of closed polygons).
     """
-    if len(open_parts) == 0 and len(closed_parts) == 0:
+    if not open_parts and not closed_parts:
         raise ValueError("Open and closed parts are empty")
     
-    nested_closed_parts = _combine_nested_polygons(closed_parts, tol)
-    intersecting_closed_parts = _combine_intersecting_polygons(nested_closed_parts, tol)
+    # Process closed parts first
+    closed_parts = _combine_nested_polygons(closed_parts, tol)
+    closed_parts = _combine_intersecting_polygons(closed_parts, tol)
     
-    if (len(open_parts) == 0):
-        return [], intersecting_closed_parts
+    if not open_parts:
+        return [], closed_parts
+
+    remaining_open_parts = []
     
-    pass
+    # Check each open part for containment
+    for open_part in open_parts:
+        is_contained = False
+        for closed_part in closed_parts:
+            if is_open_part_inside_closed_part(open_part, closed_part):
+                # Use extend to merge the lists of handles
+                closed_part.handles.extend(open_part.handles)
+                is_contained = True
+                break
+        
+        if not is_contained:
+            remaining_open_parts.append(open_part)
+            
+    # Always return the final state of both lists
+    return remaining_open_parts, closed_parts

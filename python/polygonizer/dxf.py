@@ -62,7 +62,7 @@ def polygon_parts_from_dxf(doc: ezdxf.Drawing, tol: float) -> list[PolygonPart]:
         pts, handle = _flatten_entity(e, tol)
         if len(pts) >= 2:
             all_pts.append(
-                PolygonPart(points=[Point(x=pt[0], y=pt[1]) for pt in pts], handle=[handle])
+                PolygonPart(points=[Point(x=pt[0], y=pt[1]) for pt in pts], handles=[handle])
             )
     
     return all_pts
