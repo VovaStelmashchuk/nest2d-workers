@@ -5,7 +5,7 @@ import ezdxf
 from typing import List
 from pymongo import ReturnDocument
 from mongo import db, userDxfBucket, nestDxfBucket, nestSvgBucket
-from nest import NestPolygone, NestRequest, NestRequest, NestResult, nest, NestResultLayout
+from nest import NestPolygone, NestRequest, NestResult, nest, NestResultLayout
 from svg_generator import create_svg_from_doc
 from polygone import DxfPolygon 
 import traceback
@@ -59,8 +59,6 @@ def buildLayout(nest_layout: NestResultLayout, dxf_file_name: str, svg_file_name
         source=io.BytesIO(svg_content.encode("utf-8")),
         metadata={"ownerId": ownerId}
     )
-
-from typing import Tuple
 
 def doJob(nesting_job):
     slug = nesting_job.get("slug")

@@ -6,7 +6,7 @@ import json
 def create_mongo_client():
     mongo_uri = os.environ.get("MONGO_URI")
     if not mongo_uri:
-        print("Error: 'mongoUri' key not found in the secret file.")
+        print("Error: 'mongoUri' key not found in environment variables.")
         exit(1)
 
     return MongoClient(mongo_uri)

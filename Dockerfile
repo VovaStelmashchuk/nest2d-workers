@@ -20,7 +20,13 @@ RUN ls -la /app/jagua-rs/target/wheels/
 # Stage 2: Create the final runtime image
 FROM python:3.11-slim
 
+# Create a non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /app
+
+# Upgrade pip to latest version
+RUN pip install --upgrade pip
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -30,5 +36,11 @@ COPY --from=builder /app/jagua-rs/target/wheels/ /wheels/
 RUN pip install --no-cache-dir /wheels/*.whl
 
 COPY . .
+
+# Change ownership of the app directory to the non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 CMD ["python", "python/worker_nest.py"]

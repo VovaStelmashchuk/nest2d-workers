@@ -63,7 +63,6 @@ def _remove_duplicate_points(pts: list[Point], tol: float) -> list[Point]:
     
     unique_pts = [pts[0]]
     for i in range(1, len(pts)):
-        # Use the Point class eq_to method for comparison
         if not unique_pts[-1].eq_to(pts[i], tol):
             unique_pts.append(pts[i])
     

@@ -3,6 +3,7 @@ import uuid
 import ezdxf
 from ezdxf.document import Drawing
 from gridfs.synchronous.grid_file import GridOut
+from ezdxf.disassemble import recursive_decompose
 
 def read_dxf(dxf_stream: GridOut) -> Drawing:
     """
@@ -18,33 +19,20 @@ def read_dxf(dxf_stream: GridOut) -> Drawing:
         temp_file.write(dxf_stream.read())
         temp_file_path = temp_file.name
 
-    doc = ezdxf.readfile(temp_file_path)
-    msp = doc.modelspace()
-
-    text_entities = [entity for entity in msp if entity.dxftype()
-                     in ("TEXT", "MTEXT")]
-
-    for entity in text_entities:
-        msp.delete_entity(entity)
-
-    return doc
+    return read_dxf_file(temp_file_path)
 
 def read_dxf_file(dxf_path: str) -> Drawing:
     doc = ezdxf.readfile(dxf_path)
     msp = doc.modelspace()
 
-    # Remove text entities from the original document
-    text_entities = [entity for entity in msp if entity.dxftype()
-                     in ("TEXT", "MTEXT")]
-
+    text_entities = [entity for entity in msp if entity.dxftype() in ("TEXT", "MTEXT")]
+    
     for entity in text_entities:
         msp.delete_entity(entity)
         
-    # Create a new document with the same DXF version as the original
     new_doc = ezdxf.new(dxfversion=doc.dxfversion)
     new_msp = new_doc.modelspace()
     
-    # Copy layers from the original document (skip if they already exist)
     for layer in doc.layers:
         if layer.dxf.name not in new_doc.layers:
             new_layer = new_doc.layers.add(name=layer.dxf.name)
@@ -52,14 +40,15 @@ def read_dxf_file(dxf_path: str) -> Drawing:
             new_layer.dxf.linetype = layer.dxf.linetype
             new_layer.dxf.lineweight = layer.dxf.lineweight
         else:
-            # Update existing layer properties
             existing_layer = new_doc.layers.get(layer.dxf.name)
             existing_layer.dxf.color = layer.dxf.color
             existing_layer.dxf.linetype = layer.dxf.linetype
             existing_layer.dxf.lineweight = layer.dxf.lineweight
+            
+    entities = recursive_decompose(msp)
     
     # Copy all entities (except text entities which were already removed)
-    for entity in msp:
+    for entity in entities:
         try:
             new_entity = entity.copy()
             new_entity.dxf.handle = uuid.uuid4().hex[:8].upper()

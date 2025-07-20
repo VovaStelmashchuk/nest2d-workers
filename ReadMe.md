@@ -24,24 +24,10 @@ docker run -it -v "$(pwd):/app" -w /app nest2d-workers:local bash
 Setup environment variables (run in the container)
 
 ```
-export SECRET_FILE=.secret.json
-```
-
-Sample of the secret file
-
-```json
-{
-  "mongoUri": "mongodb://<user>:<pass>@<ip>:27017/<db>"
-}
+export MONGO_URI=mongodb://user:password@host:port/db_name?...
 ```
 
 ### Run local docker stack
-
-Create a secret for docker stack
-
-```
-cat .secret.json | docker secret create nest2d-secret-dev -
-```
 
 ```
 docker stack deploy -c docker-stack.dev.yml stack-test
