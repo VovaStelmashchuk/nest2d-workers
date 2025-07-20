@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ezdxf
-import numpy as np
 from shapely.geometry import Polygon
 from shapely import contains, covers
 
@@ -12,57 +11,73 @@ from utils.logger import setup_json_logger
 logger = setup_json_logger("dxf_polygonizer")
 
 def _vec2(v):
-    """Return a plain (x, y) tuple from a Vec3 or any 3-component iterable."""
-    return (float(v[0]), float(v[1]))  # works for Vec3, numpy rows, etc.
+    """Return a Point object from a Vec3 or any 3-component iterable."""
+    return Point(x=float(v[0]), y=float(v[1]))  # works for Vec3, numpy rows, etc.
 
-def _flatten_entity(e, tol: float):
+def _flatten_entity(entity, tol: float):
     """
-    Return Nx2 NumPy array of (x, y) vertices approximating *e*
+    Return list of Point vertices approximating *e*
     and its DXF handle.  All curve entities are tessellated with the
     user–supplied *tol* so the maximum sagitta ≤ tol.
     """
-    h = e.dxf.handle
-    kind = e.dxftype()
+    h = entity.dxf.handle
+    kind = entity.dxftype()
 
     if kind == "LINE":
-        pts = np.array([_vec2(e.dxf.start), _vec2(e.dxf.end)])
+        pts = [_vec2(entity.dxf.start), _vec2(entity.dxf.end)]
 
     elif kind == "LWPOLYLINE":
-        pts = np.array([_vec2(p) for p in e.get_points(format="xy")])
-        if e.closed:
-            pts = np.vstack([pts, pts[0]])
+        pts = [_vec2(p) for p in entity.get_points(format="xy")]
+        if entity.closed:
+            pts.append(pts[0])
 
     elif kind == "POLYLINE":
-        pts = np.array([_vec2(p) for p in e.points()])
-        if getattr(e, "is_closed", False):
-            pts = np.vstack([pts, pts[0]])
+        pts = [_vec2(p) for p in entity.points()]
+        if getattr(entity, "is_closed", False):
+            pts.append(pts[0])
 
     elif kind == "ARC":
-        pts = np.array([_vec2(p) for p in e.flattening(sagitta=tol)])   # adaptive tessellation :contentReference[oaicite:2]{index=2}
+        radius = entity.dxf.radius
+        if radius < tol:
+            pts = []
+        else:
+            pts = [_vec2(p) for p in entity.flattening(sagitta=tol)]
 
     elif kind == "CIRCLE":
-        pts = np.array([_vec2(p) for p in e.flattening(sagitta=tol)])    # circle uses sagitta-based method :contentReference[oaicite:3]{index=3})
+        pts = [_vec2(p) for p in entity.flattening(sagitta=tol)]
 
     elif kind == "ELLIPSE":
-        pts = np.array([_vec2(p) for p in e.flattening(distance=tol)])   # ellipse flattening :contentReference[oaicite:4]{index=4}
+        pts = [_vec2(p) for p in entity.flattening(distance=tol)]
 
     elif kind == "SPLINE":
-        pts = np.array([_vec2(p) for p in e.flattening(distance=tol)])   # spline adaptive flattening :contentReference[oaicite:5]{index=5}
+        pts = [_vec2(p) for p in entity.flattening(distance=tol)]
 
     else:
-        pts = np.empty((0, 2))
+        pts = []
 
     return pts, h
 
+def _remove_duplicate_points(pts: list[Point], tol: float) -> list[Point]:
+    if len(pts) < 2:
+        return pts
+    
+    unique_pts = [pts[0]]
+    for i in range(1, len(pts)):
+        # Use the Point class eq_to method for comparison
+        if not unique_pts[-1].eq_to(pts[i], tol):
+            unique_pts.append(pts[i])
+    
+    return unique_pts
 
 def polygon_parts_from_dxf(doc: ezdxf.Drawing, tol: float) -> list[PolygonPart]:
     msp = doc.modelspace()
     all_pts: list[PolygonPart] = []
     for e in msp:
         pts, handle = _flatten_entity(e, tol)
+        pts = _remove_duplicate_points(pts, tol)
         if len(pts) >= 2:
             all_pts.append(
-                PolygonPart(points=[Point(x=pt[0], y=pt[1]) for pt in pts], handles=[handle])
+                PolygonPart(points=pts, handles=[handle])
             )
     
     return all_pts
