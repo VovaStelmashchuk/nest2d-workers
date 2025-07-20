@@ -1,4 +1,5 @@
 import tempfile
+import uuid
 import ezdxf
 from ezdxf.document import Drawing
 from gridfs.synchronous.grid_file import GridOut
@@ -37,5 +38,13 @@ def read_dxf_file(dxf_path: str) -> Drawing:
 
     for entity in text_entities:
         msp.delete_entity(entity)
-
-    return doc
+        
+    new_doc = ezdxf.new(dxfversion='R2010', units=4)
+    new_msp = new_doc.modelspace()
+    
+    for entity in msp:
+        new_entity = entity.copy()
+        new_entity.dxf.handle = uuid.uuid4().hex[:8].upper()
+        new_msp.add_entity(new_entity.copy())
+    
+    return new_doc
