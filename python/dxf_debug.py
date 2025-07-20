@@ -3,10 +3,9 @@ from __future__ import annotations
 from polygonizer.main import close_polygon_from_dxf 
 import ezdxf
 from dxf_utils import read_dxf_file
+import argparse
 
 if __name__ == "__main__":
-    import json
-    import argparse
     p = argparse.ArgumentParser()
     p.add_argument("--dxf", help="Input DXF file")
     p.add_argument("-t", "--tol", type=float, default=0.05, help="snap tolerance in drawing units")
@@ -15,7 +14,7 @@ if __name__ == "__main__":
     
     doc = read_dxf_file(args.dxf)
 
-    result = close_polygon_from_dxf(doc, args.tol)
+    result = close_polygon_from_dxf(doc, args.tol, logger_tag="dxf_debug")
     print(f"Found {len(result)} polygons")
     
     import matplotlib.pyplot as plt

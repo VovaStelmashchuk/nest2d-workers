@@ -54,10 +54,13 @@ def _combine_nested_polygons(polys: list[ClosedPolygon], tol: float) -> list[Clo
                 if buffered_parent.covers(child):
                     # Additional check: ensure child area is significantly inside parent
                     # (not just touching at edges)
-                    intersection_area = parent.intersection(child).area
-                    child_area = child.area
-                    # Child should be at least 90% inside parent to be considered nested
-                    inside = intersection_area >= 0.9 * child_area
+                    try:
+                        intersection_area = parent.intersection(child).area
+                    except Exception as e:
+                        logger.warning(f"Error computing intersection between polygons: {e}")
+                        logger.warning(f"Parent: {polys[i].handles}")
+                        logger.warning(f"Points: {polys[i].points}")
+                        inside = False
                 else:
                     inside = False
 
@@ -197,63 +200,106 @@ def _combine_open_parts(part_a: PolygonPart, part_b: PolygonPart, tol: float) ->
 def combine_polygon_parts(
     open_parts: list[PolygonPart], 
     closed_parts: list[ClosedPolygon], 
-    tol: float
+    tol: float,
+    logger_tag: str = "combine_polygon_parts"
 ) -> tuple[list[PolygonPart], list[ClosedPolygon]]:
     """
     Returns a tuple of (list of open polygons, list of closed polygons).
     """
     
-    logger.info("combine_polygon_parts", extra={
-        "count of open parts": len(open_parts),
-        "count of closed parts": len(closed_parts)
-    })
-    
-    if (len(open_parts) == 1):
-        print(f"Open part: {open_parts[0].points}")
-    
     if not open_parts and not closed_parts:
         raise ValueError("Open and closed parts are empty")
     
-    closed_parts = _combine_nested_polygons(closed_parts, tol)
-    closed_parts = _combine_intersecting_polygons(closed_parts, tol)
+    # Main processing loop
+    while True:
+        logger.info("combine_polygon_parts", extra={
+            "count of open parts": len(open_parts),
+            "count of closed parts": len(closed_parts)
+        })
+        closed_parts = _combine_nested_polygons(closed_parts, tol)
+        closed_parts = _combine_intersecting_polygons(closed_parts, tol)
+        
+        # Check if any open parts have become closed
+        open_parts_to_remove = []
+        for open_part in open_parts:
+            if open_part.is_closed(tol):
+                closed_parts.append(open_part.to_closed_polygon())
+                open_parts_to_remove.append(open_part)
+        
+        # Remove closed parts from open parts list
+        for part in open_parts_to_remove:
+            open_parts.remove(part)
+        
+        # If no open parts left, we're done
+        if not open_parts or len(open_parts) == 0:
+            return [], closed_parts
+        
+        # Try to combine open parts with each other
+        combined = False
+        n = len(open_parts)
+        for i in range(n):
+            for j in range(i + 1, n):
+                combine, new_part = _combine_open_parts(open_parts[i], open_parts[j], tol)
+                if combine:
+                    # Remove the two parts that were combined
+                    open_parts.pop(j)  # Remove j first (higher index)
+                    open_parts.pop(i)  # Then remove i
+                    # Add the new combined part
+                    open_parts.append(new_part)
+                    combined = True
+                    break
+            if combined:
+                break
+        
+        # If we combined open parts, continue the loop
+        if combined:
+            continue
+        
+        # Try to combine open parts with closed parts
+        open_parts_to_remove = []
+        for open_part in open_parts:
+            for closed_part in closed_parts:
+                if is_open_part_inside_closed_part(open_part, closed_part):
+                    closed_part.handles.extend(open_part.handles)
+                    open_parts_to_remove.append(open_part)
+                    break
+        
+        # Remove open parts that were combined with closed parts
+        for part in open_parts_to_remove:
+            open_parts.remove(part)
+        
+        # If we combined open parts with closed parts, continue the loop
+        if open_parts_to_remove:
+            continue
+        
+        if open_parts:
+            logger.debug(f"{logger_tag} - open parts: {[part.handles for part in open_parts]}")
+            min_x = open_parts[0].points[0].x
+            max_x = open_parts[0].points[0].x
+            min_y = open_parts[0].points[0].y
+            max_y = open_parts[0].points[0].y
+            
+            for part in open_parts:
+                points = part.points
+                for point in points:
+                    if point.x < min_x:
+                        min_x = point.x
+                    if point.x > max_x:
+                        max_x = point.x
+                    if point.y < min_y:
+                        min_y = point.y
+                    if point.y > max_y:
+                        max_y = point.y
+            
+            close_polygone = ClosedPolygon(
+                points=[Point(min_x, min_y), Point(max_x, min_y), Point(max_x, max_y), Point(min_x, max_y), Point(min_x, min_y)],
+                handles=[h for part in open_parts for h in part.handles],
+            )
+            
+            closed_parts.append(close_polygone)
+            open_parts = []
+            continue
+        
+        break
     
-    for open_part in open_parts:
-        if open_part.is_closed(tol):
-            closed_parts.append(open_part)
-            open_parts.remove(open_part)
-            return combine_polygon_parts(open_parts, closed_parts, tol)
-
-    if not open_parts or len(open_parts) == 0:
-        return [], closed_parts
-    
-    n = len(open_parts)
-    already_combined = set()
-    combined_open_parts = []
-    is_any_combined = False
-    for i in range(n):
-        for j in range(i + 1, n):
-            combine, new_part = _combine_open_parts(open_parts[i], open_parts[j], tol)
-            if combine:
-                already_combined.add(i)
-                already_combined.add(j)
-                combined_open_parts.append(new_part)
-                is_any_combined = True
-   
-    if is_any_combined:
-        non_combined_open_parts = [part for i, part in enumerate(open_parts) if i not in already_combined]
-        open_parts = non_combined_open_parts + combined_open_parts
-        return combine_polygon_parts(open_parts, closed_parts, tol)
-    
-    for open_part in open_parts:
-        for closed_part in closed_parts:
-            if is_open_part_inside_closed_part(open_part, closed_part):
-                closed_part.handles.extend(open_part.handles)
-                open_parts.remove(open_part)
-                return combine_polygon_parts(open_parts, closed_parts, tol)
-   
-    print("Open parts are not inside any closed parts")
-    print(f"Open parts length: {len(open_parts)}")
-    print(f"Open parts: {[part.handles for part in open_parts]}")
-    print(f"Closed parts: {[part.handles for part in closed_parts]}")
-   
-    raise ValueError("Open parts are not inside any closed parts")
+    return [], closed_parts
