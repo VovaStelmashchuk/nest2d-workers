@@ -75,5 +75,40 @@ class TestCombinePolygonParts:
         assert close[0] == closed_part
         assert set(close[0].handles) == {"handle1", "handle2"}
         
+        
+    def test_open_lines_form_rectangle(self):
+        """Test that open lines form a rectangle"""
+        open_part_1 = PolygonPart(
+            points=[Point(0, 0), Point(1, 0)],
+            handles=["handle1"]
+        )
+        open_part_2 = PolygonPart(
+            points=[Point(1, 0), Point(1, 1)],
+            handles=["handle2"]
+        )
+        open_part_3 = PolygonPart(
+            points=[Point(1, 1), Point(0, 1)],
+            handles=["handle3"]
+        )
+        open_part_4 = PolygonPart(
+            points=[Point(0, 1), Point(0, 0)],
+            handles=["handle4"]
+        )
+        
+        open, close = combine_polygon_parts([open_part_1, open_part_2, open_part_3, open_part_4], [], 0.1)
+        
+        assert len(open) == 0
+        assert len(close) == 1
+        assert set(close[0].handles) == {"handle1", "handle2", "handle3", "handle4"}
+        
+        result_shapely = ShapelyPolygon([(p.x, p.y) for p in close[0].points])
+        
+        expected_points = [
+            Point(0, 0), Point(1, 0), Point(1, 1), Point(0, 1), Point(0, 0)
+        ]
+        expected_shapely = ShapelyPolygon([(p.x, p.y) for p in expected_points])
+        
+        assert result_shapely.equals(expected_shapely)
+        
 if __name__ == "__main__":
     pytest.main([__file__]) 

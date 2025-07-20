@@ -3,6 +3,9 @@ from operator import contains
 import shapely
 from polygonizer.dto import PolygonPart, ClosedPolygon, Point
 from shapely.geometry import Polygon
+from utils.logger import setup_json_logger
+
+logger = setup_json_logger("polygonizer")
 
 def _combine_nested_polygons(polys: list[ClosedPolygon], tol: float) -> list[ClosedPolygon]:
     """
@@ -158,6 +161,39 @@ def is_open_part_inside_closed_part(open_part: PolygonPart, closed_part: ClosedP
             return False
     return True
 
+def _combine_open_parts(part_a: PolygonPart, part_b: PolygonPart, tol: float) -> tuple[bool, PolygonPart]:
+    """
+    Return a tuple of (True if the parts are combined, the combined part).
+    """
+    
+    a_start= part_a.points[0]
+    a_end= part_a.points[-1]
+    b_start= part_b.points[0]
+    b_end= part_b.points[-1]
+    
+    if a_start.eq_to(b_start, tol):
+        return True, PolygonPart(
+            points=list(reversed(part_b.points)) + part_a.points[1:],
+            handles=part_a.handles + part_b.handles
+        )
+    elif a_start.eq_to(b_end, tol):
+        return True, PolygonPart(
+            points=part_b.points + part_a.points[1:],
+            handles=part_a.handles + part_b.handles
+        )
+    elif a_end.eq_to(b_start, tol):
+        return True, PolygonPart(
+            points=part_a.points + part_b.points[1:],
+            handles=part_a.handles + part_b.handles
+        )
+    elif a_end.eq_to(b_end, tol):
+        return True, PolygonPart(
+            points=part_a.points[:-1] + list(reversed(part_b.points)),
+            handles=part_a.handles + part_b.handles
+        )
+    
+    return False, None
+
 def combine_polygon_parts(
     open_parts: list[PolygonPart], 
     closed_parts: list[ClosedPolygon], 
@@ -166,21 +202,58 @@ def combine_polygon_parts(
     """
     Returns a tuple of (list of open polygons, list of closed polygons).
     """
+    
+    logger.info("combine_polygon_parts", extra={
+        "count of open parts": len(open_parts),
+        "count of closed parts": len(closed_parts)
+    })
+    
+    if (len(open_parts) == 1):
+        print(f"Open part: {open_parts[0].points}")
+    
     if not open_parts and not closed_parts:
         raise ValueError("Open and closed parts are empty")
     
-    # Process closed parts first
     closed_parts = _combine_nested_polygons(closed_parts, tol)
     closed_parts = _combine_intersecting_polygons(closed_parts, tol)
     
+    for open_part in open_parts:
+        if open_part.is_closed(tol):
+            closed_parts.append(open_part)
+            open_parts.remove(open_part)
+            return combine_polygon_parts(open_parts, closed_parts, tol)
+
     if not open_parts or len(open_parts) == 0:
         return [], closed_parts
-
+    
+    n = len(open_parts)
+    already_combined = set()
+    combined_open_parts = []
+    is_any_combined = False
+    for i in range(n):
+        for j in range(i + 1, n):
+            combine, new_part = _combine_open_parts(open_parts[i], open_parts[j], tol)
+            if combine:
+                already_combined.add(i)
+                already_combined.add(j)
+                combined_open_parts.append(new_part)
+                is_any_combined = True
+   
+    if is_any_combined:
+        non_combined_open_parts = [part for i, part in enumerate(open_parts) if i not in already_combined]
+        open_parts = non_combined_open_parts + combined_open_parts
+        return combine_polygon_parts(open_parts, closed_parts, tol)
+    
     for open_part in open_parts:
         for closed_part in closed_parts:
             if is_open_part_inside_closed_part(open_part, closed_part):
                 closed_part.handles.extend(open_part.handles)
                 open_parts.remove(open_part)
                 return combine_polygon_parts(open_parts, closed_parts, tol)
-    
+   
+    print("Open parts are not inside any closed parts")
+    print(f"Open parts length: {len(open_parts)}")
+    print(f"Open parts: {[part.handles for part in open_parts]}")
+    print(f"Closed parts: {[part.handles for part in closed_parts]}")
+   
     raise ValueError("Open parts are not inside any closed parts")
