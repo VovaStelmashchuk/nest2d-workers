@@ -4,6 +4,9 @@ import ezdxf
 from ezdxf.document import Drawing
 from gridfs.synchronous.grid_file import GridOut
 from ezdxf.disassemble import recursive_decompose
+from utils.logger import setup_json_logger
+
+logger = setup_json_logger("dxf_utils")
 
 def read_dxf(dxf_stream: GridOut) -> Drawing:
     """
@@ -54,7 +57,11 @@ def read_dxf_file(dxf_path: str) -> Drawing:
             new_entity.dxf.handle = uuid.uuid4().hex[:8].upper()
             new_msp.add_entity(new_entity.copy())
         except Exception as e:
-            print(f"Warning: Could not copy entity {entity.dxftype()} with handle {getattr(entity.dxf, 'handle', 'unknown')}: {e}")
+            logger.warning("Warning: Could not copy entity", extra={
+                "entity_type": entity.dxftype(),
+                "handle": getattr(entity.dxf, 'handle', 'unknown'),
+                "error": e
+            })
             continue
     
     return new_doc

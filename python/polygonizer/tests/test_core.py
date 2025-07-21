@@ -51,8 +51,6 @@ class TestCombinePolygonParts:
         expected_points = [
             Point(0, 0), Point(1, 0), Point(1, 0.5), Point(1.5, 0.5), Point(1.5, 1.5), Point(0.5, 1.5), Point(0.5, 1), Point(0, 1), Point(0, 0)
         ]
-        print(close[0].points)
-        print(expected_points)
         expected_shapely = ShapelyPolygon([(p.x, p.y) for p in expected_points])
         
         assert result_shapely.equals(expected_shapely)

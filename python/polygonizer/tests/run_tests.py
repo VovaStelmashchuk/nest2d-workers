@@ -31,11 +31,6 @@ def main():
     # Run the tests
     exit_code = pytest.main(args)
     
-    if exit_code == 0:
-        print("\n✅ All tests passed!")
-    else:
-        print(f"\n❌ Tests failed with exit code {exit_code}")
-    
     return exit_code
 
 if __name__ == "__main__":

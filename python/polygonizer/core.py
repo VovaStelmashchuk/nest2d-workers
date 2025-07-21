@@ -213,11 +213,16 @@ def combine_polygon_parts(
     # Main processing loop
     while True:
         logger.info("combine_polygon_parts", extra={
-            "count of open parts": len(open_parts),
-            "count of closed parts": len(closed_parts)
+            "open_parts": len(open_parts),
+            "closed_parts": len(closed_parts)
         })
+        
+        original_close_part_conut = len(closed_parts)
         closed_parts = _combine_nested_polygons(closed_parts, tol)
         closed_parts = _combine_intersecting_polygons(closed_parts, tol)
+       
+        if original_close_part_conut != len(closed_parts):
+            continue
         
         # Check if any open parts have become closed
         open_parts_to_remove = []
@@ -225,14 +230,12 @@ def combine_polygon_parts(
             if open_part.is_closed(tol):
                 closed_parts.append(open_part.to_closed_polygon())
                 open_parts_to_remove.append(open_part)
-        
-        # Remove closed parts from open parts list
+       
         for part in open_parts_to_remove:
             open_parts.remove(part)
         
-        # If no open parts left, we're done
-        if not open_parts or len(open_parts) == 0:
-            return [], closed_parts
+        if len(open_parts_to_remove) != 0:
+            continue
         
         # Try to combine open parts with each other
         combined = False
@@ -273,7 +276,7 @@ def combine_polygon_parts(
             continue
         
         if open_parts:
-            logger.debug(f"{logger_tag} - open parts: {[part.handles for part in open_parts]}")
+            logger.info(f"{logger_tag} - open parts: {[part.handles for part in open_parts]}")
             min_x = open_parts[0].points[0].x
             max_x = open_parts[0].points[0].x
             min_y = open_parts[0].points[0].y

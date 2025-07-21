@@ -60,7 +60,6 @@ def find_closed_polygons(dxf_stream: GridOut, tolerance: float) -> List[DxfPolyg
             if layer_name in layers_info:
                 color = layers_info[layer_name]['color']
                 entity.dxf.color = color 
-                print(entity.dxf.get("handle"))
                 color_map[entity.dxf.handle] = color 
     
     closed_polygons = close_polygon_from_dxf(doc, tolerance, "dxf_polygonizer")

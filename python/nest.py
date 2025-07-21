@@ -4,7 +4,9 @@ import json
 import nest_rust
 from polygone import DxfPolygon
 from shapely.geometry import Polygon
+from utils.logger import setup_json_logger
 
+logger = setup_json_logger("nest")
 
 class NestPolygone:
     def __init__(self, polygone_group, count):
@@ -61,14 +63,14 @@ def nest(nest_request: NestRequest) -> NestResult:
     try:
         result_json = nest_rust.run_nest(nest_request_json)
     except Exception as e:
-        print("Error executing Rust code:", e)
+        logger.error("Error executing Rust code:", extra={"error": e})
         raise e
 
     try:
         result = json.loads(result_json)
         solution = result.get("Solution")
     except json.JSONDecodeError as e:
-        print("Error decoding JSON result:", e)
+        logger.error("Error decoding JSON result:", extra={"error": e})
         raise e
     
     layouts = solution.get("Layouts")

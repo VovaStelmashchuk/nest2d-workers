@@ -4,6 +4,9 @@ from polygonizer.main import close_polygon_from_dxf
 import ezdxf
 from dxf_utils import read_dxf_file
 import argparse
+from utils.logger import setup_json_logger
+
+logger = setup_json_logger("dxf_debug")
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
@@ -15,7 +18,7 @@ if __name__ == "__main__":
     doc = read_dxf_file(args.dxf)
 
     result = close_polygon_from_dxf(doc, args.tol, logger_tag="dxf_debug")
-    print(f"Found {len(result)} polygons")
+    logger.info("polygones found", extra={"count": len(result)})
     
     import matplotlib.pyplot as plt
     import numpy as np

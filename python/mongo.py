@@ -1,12 +1,15 @@
 import gridfs
 from pymongo import MongoClient
 import os
-import json
+
+from utils.logger import setup_json_logger
+
+logger = setup_json_logger("mongo")
 
 def create_mongo_client():
     mongo_uri = os.environ.get("MONGO_URI")
     if not mongo_uri:
-        print("Error: 'mongoUri' key not found in environment variables.")
+        logger.error("Error: 'mongoUri' key not found in environment variables.")
         exit(1)
 
     return MongoClient(mongo_uri)
