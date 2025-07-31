@@ -11,14 +11,3 @@ services:
       replicas: ${WORKERS_REPLICAS}
       update_config:
         order: start-first
-
-  userdxf2svg-worker:
-    image: ghcr.io/vovastelmashchuk/nest2d-workers:${GIT_COMMIT_SHA:-latest}
-    environment:
-      - MONGO_URI=${MONGO_URI}
-      - PYTHONUNBUFFERED=1
-    command: ["python", "python/worker_user_dxf_2_svg.py"]
-    deploy:
-      replicas: ${WORKERS_REPLICAS}
-      update_config:
-        order: start-first
