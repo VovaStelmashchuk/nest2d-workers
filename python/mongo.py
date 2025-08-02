@@ -18,10 +18,7 @@ def create_mongo_client():
 client = create_mongo_client()
 db = client.get_default_database()
 
-userDxfBucket = gridfs.GridFSBucket(db, bucket_name="userDxf")
-userSvgBucket = gridfs.GridFSBucket(db, bucket_name="userSvg")
+userDxfBucket = gridfs.GridFSBucket(db, bucket_name="validDxf")
 
 nestDxfBucket = gridfs.GridFSBucket(db, bucket_name="nestDxf")
 nestSvgBucket = gridfs.GridFSBucket(db, bucket_name="nestSvg")
-
-tmpBucket = gridfs.GridFSBucket(db, bucket_name="tmp")
