@@ -1,39 +1,36 @@
-The project is a worker for process the dxf files. Creates for web application [Nest2d](https://nest2d.stelmashchuk.dev/)
+## I finally managed to merge all source code of [nest2d.stelmashchuk.dev](https://nest2d.stelmashchuk.dev) into one repository, so all future development will be [here](https://github.com/VovaStelmashchuk/nest2d)
 
-## Attention
-
-The project is under development.
-The project does not have a goal to be universal dxf parser or etc because the project is created for a specific task.
+The project is a worker for processing the DXF files. Creates for web application [Nest2d](https://nest2d.stelmashchuk.dev/)
 
 ## How to run
 
-### Build docker image
+### Build Docker image
 
-One docker image for both workers, we just change the commend into docker stack file
+One Docker image for both workers, we just change the command in the Docker stack file
 
 ```
 docker build -t nest2d-workers:local .
 ```
 
-Run docker container for development, using bind to the current directory for make changes in the code
+Run Docker container for development, using bind to the current directory for make changes in the code
 
 ```
 docker run -it -v "$(pwd):/app" -w /app nest2d-workers:local bash
 ```
 
-Setup environment variables (run in the container)
+Set up environment variables (run in the container)
 
 ```
 export MONGO_URI=mongodb://user:password@host:port/db_name?...
 ```
 
-### Run local docker stack
+### Run local Docker stack
 
 ```
 docker stack deploy -c docker-stack.dev.yml stack-test
 ```
 
-## Main idea how it works
+## The main idea How it works
 
 Parse dxf file and create a list of the polygons. Each polygon is a list of points.
 Than the data of polygones provides to jagua-rs library for creating a nest of the polygons, implement in rust.
